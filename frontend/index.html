@@ -117,7 +117,7 @@ ${Object.keys(FX).map((k,i)=>`<button class="alt sm" data-d="${k}">${["Trusted",
     last=scan(x);V.result(last);
   }
  };
- $("#go").onclick=()=>run($("#u").value);$("#u").onkeydown=e=>e.key=="Enter"&&run(e.target.value);
+ $("#go").onclick=()=>run($("#u").value);$("#u").onkeydown=(e)=>{if(e.key==="Enter")run(e.target.value);};
  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{$("#u").value="https://"+b.dataset.d;run($("#u").value)})},
 result(r){const[c,cc]=cls(r.score),a=r.a,names={threat:"Threat intelligence",sec:"Website security",cert:"Certificate trust",comm:"Community reputation"};
  const neg=a.f.map(x=>x[1]),pos=[...a.pos];if(a.fx){a.fx.sec.filter(s=>s[1]=="Passed").length>4&&pos.push("Most security headers are in place.");a.fx.cert.match&&a.fx.cert.chain&&a.fx.cert.days>0&&pos.push("Certificate is valid and matches the domain.");a.fx.sec.filter(s=>s[1]=="Failed").length>2&&neg.push("Several security settings are missing.");a.fx.cert.days<0&&neg.push("Certificate has expired.")}
