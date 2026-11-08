@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TRUSTLENS – Website Trust Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f5f9;--card:#fff;--ink:#12203a;--mut:#5a6783;--line:#dde3ee;--navy:#0b1b3a;--blue:#2563eb;--ok:#15803d;--warn:#b45309;--bad:#c62828;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0a1428;--card:#122042;--ink:#e8edf8;--mut:#9fb0d0;--line:#243459;--blue:#6ea0ff;--ok:#4ade80;--warn:#fbbf24;--bad:#ff7b72;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#0a1428;--card:#122042;--ink:#e8edf8;--mut:#9fb0d0;--line:#243459;--blue:#6ea0ff;--ok:#4ade80;--warn:#fbbf24;--bad:#ff7b72;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;font:15px/1.55 Manrope,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--navy);color:#fff;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;padding:12px 20px}
+header b{font-weight:800;font-size:18px;margin-right:auto}
+header a{color:#c5d3f5;text-decoration:none;padding:4px 2px;border-bottom:2px solid transparent}
+header a.on{color:#fff;border-color:#6ea0ff}
+main{max-width:980px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:clamp(26px,5vw,40px);line-height:1.1;margin:0 0 8px;font-weight:800}h2{font-size:20px;margin:26px 0 10px}h3{margin:0 0 6px;font-size:16px}
+.hero{background:var(--navy);color:#fff;border-radius:12px;padding:28px 22px}.hero p{color:#c5d3f5;margin:0 0 16px;max-width:60ch}
+.row{display:flex;gap:8px;flex-wrap:wrap}input,select,textarea{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+.row input{flex:1;min-width:220px}textarea{width:100%}
+button{font:inherit;font-weight:600;padding:10px 16px;border:0;border-radius:8px;background:var(--blue);color:#fff;cursor:pointer}
+button.alt{background:transparent;color:inherit;border:1px solid #6b7fa8}button.sm{padding:5px 10px;font-size:13px}
+:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.stat{font-size:30px;font-weight:800}.mut{color:var(--mut);font-size:13px}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;border:1px solid currentColor}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.na{color:var(--mut)}
+.top{display:flex;gap:20px;flex-wrap:wrap;align-items:center}.score{font-size:64px;font-weight:800;line-height:1}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+.scroll{overflow-x:auto}details{margin-top:8px}summary{cursor:pointer;color:var(--blue);font-weight:600}
+.demo{background:#fef3c7;color:#78350f;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700}
+ul{margin:6px 0;padding-left:20px}footer{text-align:center;color:var(--mut);padding:20px;font-size:13px}
+</style></head><body>
+<header><b>🔍 TRUSTLENS</b><nav id="nav" class="row" style="gap:16px"></nav></header>
+<main id="app"></main>
+<footer>TRUSTLENS prototype · scoring is heuristic and explainable, not a guarantee. Items marked <span class="demo">DEMO DATA</span> are simulated fixtures.</footer>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=new Date().toISOString().slice(0,10);
+const BRANDS={"Example Bank":"examplebank.com","PayPal":"paypal.com","Google":"google.com","Microsoft":"microsoft.com","Amazon":"amazon.com","State University":"stateuniversity.edu"};
+const WEIGHTS={threat:.4,sec:.15,cert:.2,comm:.25};
+const CATS=[["Phishing","phishing"],["Fake recruitment portal","fake_recruitment"],["Fake banking website","fake_banking"],["Fake payment portal","fake_payment"],["Brand impersonation","brand_impersonation"],["Suspicious redirect","suspicious_redirect"],["Other malicious activity","other"]];
+const FX={
+"demo-trusted.example":{urlhaus:false,sec:[["HTTPS available","Passed","High","Site is served over HTTPS.",""],["HSTS","Passed","Medium","Browsers are forced onto HTTPS.",""],["Content-Security-Policy","Passed","Medium","Script sources are restricted.",""],["X-Content-Type-Options","Passed","Low","MIME sniffing disabled.",""],["Referrer-Policy","Passed","Low","Referrer data limited.",""],["HTTP→HTTPS redirect","Passed","Medium","Plain HTTP redirects to HTTPS.",""]],cert:{issuer:"Demo Trust CA",days:212,match:true,chain:true,ct:"14 certificates logged in the last year; no unexpected issuers."}},
+"examplebank-secure-login.example":{urlhaus:false,sec:[["HTTPS available","Passed","High","Served over HTTPS.",""],["HSTS","Failed","Medium","No HSTS header.","Add Strict-Transport-Security."],["Content-Security-Policy","Failed","Medium","No CSP header.","Define a CSP."],["X-Content-Type-Options","Warning","Low","Header missing.","Add nosniff."],["Referrer-Policy","Not assessed","Low","Could not read.",""],["HTTP→HTTPS redirect","Passed","Medium","Redirects to HTTPS.",""]],cert:{issuer:"Free Demo CA",days:9,match:true,chain:true,ct:"Certificate first issued 3 days ago; 5 similar names logged this week."}},
+"demo-reported-malware.example":{urlhaus:true,sec:[["HTTPS available","Failed","High","Only HTTP responds.","Enable HTTPS."],["HSTS","Failed","Medium","Not present.",""],["Content-Security-Policy","Failed","Medium","Not present.",""],["X-Content-Type-Options","Failed","Low","Not present.",""],["Referrer-Policy","Failed","Low","Not present.",""],["HTTP→HTTPS redirect","Failed","Medium","No redirect.",""]],cert:{issuer:"—",days:-14,match:false,chain:false,ct:"No valid certificate; expired certificate logged 14 days ago."}}};
+const S={admin:false,reports:[
+{id:1,domain:"demo-reported-malware.example",cat:"Phishing",desc:"Fake login page",status:"Verified",users:["a","b","c","d"],first:"2026-09-30",last:"2026-11-05"},
+{id:2,domain:"examplebank-secure-login.example",cat:"Fake banking website",desc:"Asked for card PIN",status:"Under Verification",users:["e","f"],first:"2026-11-04",last:"2026-11-07"},
+{id:3,domain:"quick-hire-portal.example",cat:"Fake recruitment portal",desc:"Asks for fee before interview",status:"Pending Review",users:["g"],first:"2026-11-06",last:"2026-11-06"},
+{id:4,domain:"pay-verify-now.example",cat:"Fake payment portal",desc:"Mimics payment page",status:"Verified",users:["h","i","j"],first:"2026-10-12",last:"2026-11-01"}],
+hist:{"demo-reported-malware.example":[[ "2026-10-02",71],["2026-10-20",80],["2026-11-03",88]],"examplebank-secure-login.example":[["2026-11-05",52],["2026-11-07",58]],"demo-trusted.example":[["2026-10-01",8],["2026-10-20",7]]}};
+const me="user-"+Math.random().toString(36).slice(2,8);
+function parse(u){u=u.trim();if(!/^[a-z]+:\/\//i.test(u))u="https://"+u;let x;try{x=new URL(u)}catch(e){return null}if(!/^https?:$/.test(x.protocol)||!x.hostname.includes("."))return null;return x}
+function lev(a,b){const d=[...Array(a.length+1)].map((_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]==b[j-1]?0:1));return d[a.length][b.length]}
+const regd=h=>h.split(".").slice(-2).join(".");
+function repOf(domain){const r=S.reports.filter(x=>x.domain==domain);const ver=r.filter(x=>x.status=="Verified"),uniq=new Set(r.flatMap(x=>x.users)).size;
+ return{n:r.length,uniq,ver:ver.length,risk:Math.min(100,ver.length*55+(r.length-ver.length)*uniq*6)}}
+function analyze(x){const h=x.hostname.toLowerCase(),f=[],pos=[],fx=FX[h];let t=0;
+ const add=(p,m)=>{t+=p;f.push([p,m])};
+ if(/^\d+\.\d+\.\d+\.\d+$/.test(h))add(35,"Uses a raw IP address instead of a name.");
+ if(x.href.length>75)add(10,"Very long URL ("+x.href.length+" characters).");
+ if(h.split(".").length>4)add(15,"Many subdomains ("+(h.split(".").length-2)+").");
+ if((h.match(/-/g)||[]).length>=2)add(10,"Several hyphens in the domain.");
+ if(/xn--/.test(h))add(25,"Punycode (look-alike characters) in the domain.");
+ if(x.href.includes("@"))add(20,"Contains '@', which can hide the real destination.");
+ if(x.protocol=="http:")add(15,"Page is not served over HTTPS.");
+ const kw=(h+x.pathname).match(/login|secure|verify|account|update|signin|confirm|wallet|bank/g);if(kw)add(Math.min(20,kw.length*7),"Pressure keywords: "+[...new Set(kw)].join(", ")+".");
+ if(!f.length)pos.push("No suspicious URL structure found.");
+ let imp=null;const norm=h.replace(/0/g,"o").replace(/1/g,"l").replace(/3/g,"e").replace(/5/g,"s").replace(/vv/g,"w");
+ for(const[n,d]of Object.entries(BRANDS)){if(regd(h)==d){pos.push("Domain matches registered "+n+" domain.");break}const lab=d.split(".")[0],rl=regd(norm).split(".")[0];
+  if(norm.includes(lab)){imp={n,d,ev:["Domain differs from the registered domain "+d+".","Contains the brand name with extra words or subdomains."]};break}
+  if(lev(rl,lab)<=2&&rl!=lab){imp={n,d,ev:["Domain is very similar to "+d+" (character substitutions).","Website identity requires further verification."]};break}}
+ if(imp)add(35,"Possible impersonation of "+imp.n+".");
+ const uh=fx?fx.urlhaus:null;if(uh)add(50,"URLhaus-style match (simulated fixture).");
+ return{t:Math.min(100,t),f,pos,imp,fx,uh}}
+const secScore=l=>{const w={Failed:1,Warning:.5};const sv={High:3,Medium:2,Low:1};let a=0,b=0;l.forEach(c=>{if(c[1]=="Not assessed")return;b+=sv[c[2]];a+=sv[c[2]]*(w[c[1]]||0)});return b?Math.round(a/b*100):null};
+function certScore(c){let s=0;if(c.days<0)s+=50;else if(c.days<14)s+=20;if(!c.match)s+=25;if(!c.chain)s+=25;return Math.min(100,s)}
+const cls=s=>s<25?["Low Risk","ok"]:s<50?["Moderate Risk","warn"]:s<75?["High Risk","bad"]:["Critical Risk","bad"];
+function scan(x){const a=analyze(x),h=x.hostname,rep=repOf(h),m={threat:a.t,sec:null,cert:null,comm:rep.risk};const mod=["Threat intelligence"];
+ if(a.fx){m.sec=secScore(a.fx.sec);m.cert=certScore(a.fx.cert)}
+ let ws=0,sum=0,assessed=0;for(const k in WEIGHTS)if(m[k]!=null){ws+=WEIGHTS[k];sum+=WEIGHTS[k]*m[k];assessed++}
+ const score=Math.round(sum/ws);let conf=25+assessed*12+Math.min(30,rep.ver*20+rep.uniq*4)+(a.uh?10:0);conf=Math.min(95,conf);
+ const confL=conf>=70?"High":conf>=50?"Medium":"Low";
+ const r={url:x.href,host:h,score,m,a,rep,conf,confL,time:new Date().toLocaleString()};
+ (S.hist[h]=S.hist[h]||[]).push([today,score]);return r}
+const bar=(v,c)=>`<div class="bar" role="img" aria-label="${v} of 100"><i style="width:${v}%;background:var(--${c})"></i></div>`;
+const st=s=>`<span class="pill ${({Passed:"ok",Warning:"warn",Failed:"bad"})[s]||"na"}">${s}</span>`;
+function nav(){const p=[["scan","Scan"],["dashboard","Dashboard"],["explorer","Threat Explorer"],["report","Report a site"],["cert","Certificates"],["admin","Admin"]];const cur=location.hash.slice(1)||"scan";$("#nav").innerHTML=p.map(([k,l])=>`<a href="#${k}" class="${cur==k?"on":""}">${l}</a>`).join("")}
+let last=null;
+const V={
+scan(){$("#app").innerHTML=`<div class="hero"><h1>Don't just detect threats.<br>Understand website trust.</h1><p>Paste a link. TRUSTLENS checks the URL, website security, certificate and community reports, then explains why a site is or isn't trustworthy.</p>
+<div class="row"><input id="u" aria-label="Website URL" placeholder="https://example.com" value=""><button id="go">Scan website</button></div>
+<div class="row" style="margin-top:10px"><span class="mut" style="color:#9fb0d0;align-self:center">Try a demo:</span>
+${Object.keys(FX).map((k,i)=>`<button class="alt sm" data-d="${k}">${["Trusted","Suspicious","Reported malicious"][i]}</button>`).join("")}</div></div>
+<div id="res"></div>
+<div class="grid" style="margin-top:20px">${[["Threat intelligence","Phishing patterns, look-alike brands, known-bad matches."],["Website security","HTTPS, HSTS, CSP and other public headers."],["Certificate trust","Validity, expiry, name match, issuance logs."],["Community reputation","Reports from people, verified by reviewers."]].map(a=>`<div class="card"><h3>${a[0]}</h3><span class="mut">${a[1]}</span></div>`).join("")}</div>`;
+ const run=async v=>{const x=parse(v);if(!x){$("#res").innerHTML=`<div class="card bad">Enter a valid http or https address, for example https://example.com. Local and private addresses are not scanned.</div>`;return}
+  $("#res").innerHTML=`<div class="card" id="prog"></div>`;const steps=["Threat intelligence","Website security","Certificate trust","Community reputation"];let i=0;
+  const tick=()=>{$("#prog").innerHTML="<b>Running live analysis…</b><ul>"+steps.map((s,j)=>`<li class="${j<i?"ok":"mut"}">${j<i?"✓":"…"} ${s}</li>`).join("")+"</ul>";if(i<4){i++;setTimeout(tick,350)}};tick();
+  try{
+    const res=await fetch('/api/scans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:v})});
+    const json=await res.json().catch(()=>null);
+    if(res.ok&&json&&json.ok){
+      last=json.data;
+      (S.hist[last.host]=S.hist[last.host]||[]).push([today,last.score]);
+      S.recentScans=S.recentScans||[];
+      S.recentScans.unshift({id:last.id,url:last.url,host:last.host,score:last.score,time:last.time,classification:last.classification});
+      V.result(last);
+    }else{
+      const err=json?.error?.message||`Scan request failed with HTTP ${res.status}.`;
+      $("#res").innerHTML=`<div class="card bad"><h3>Scan Failed</h3><p>${esc(err)}</p><span class="mut">Error code: ${esc(json?.error?.code||'SCAN_FAILED')}</span></div>`;
+    }
+  }catch(e){
+    last=scan(x);V.result(last);
+  }
+ };
+ $("#go").onclick=()=>run($("#u").value);$("#u").onkeydown=e=>e.key=="Enter"&&run(e.target.value);
+ document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{$("#u").value="https://"+b.dataset.d;run($("#u").value)})},
+result(r){const[c,cc]=cls(r.score),a=r.a,names={threat:"Threat intelligence",sec:"Website security",cert:"Certificate trust",comm:"Community reputation"};
+ const neg=a.f.map(x=>x[1]),pos=[...a.pos];if(a.fx){a.fx.sec.filter(s=>s[1]=="Passed").length>4&&pos.push("Most security headers are in place.");a.fx.cert.match&&a.fx.cert.chain&&a.fx.cert.days>0&&pos.push("Certificate is valid and matches the domain.");a.fx.sec.filter(s=>s[1]=="Failed").length>2&&neg.push("Several security settings are missing.");a.fx.cert.days<0&&neg.push("Certificate has expired.")}
+ if(r.rep.ver)neg.push(r.rep.ver+" verified community report(s).");else if(!r.rep.n)pos.push("No community reports (this does not prove safety).");
+ const recs=r.score>=50?["Do not enter passwords or payment details.","Close the page and report it using 'Report a site'.","Open the real organisation's site by typing its address yourself."]:r.score>=25?["Be careful with logins and payments.","Verify the site through an official source."]:["No major concerns found. Keep normal caution."];
+ const h=S.hist[r.host]||[];const pts=h.map((p,i)=>`${i*(280/Math.max(1,h.length-1))+10},${110-p[1]}`).join(" ");
+ $("#res").innerHTML=`<div class="card"><div class="top"><div><div class="score ${cc}">${r.score}</div><div class="mut">out of 100</div></div><div><h2 style="margin:0" class="${cc}">${c}</h2><div>Confidence: <b>${r.confL}</b> (${r.conf}%) · Coverage: <b>${r.coverage??100}%</b></div><div class="mut">${esc(r.url)} · ${r.time} ${r.id?`<span class="pill">ID: TL-${esc(String(r.id).slice(-6))}</span>`:""} ${a.fx?'<span class="demo">DEMO DATA</span>':""}</div></div></div></div>
+<div class="card"><h3>How each module contributed</h3>${Object.keys(names).map(k=>`<div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>${names[k]} <span class="mut">(weight ${WEIGHTS[k]*100}%)</span></span><b>${r.m[k]==null?"Not assessed":r.m[k]}</b></div>${r.m[k]==null?'<div class="mut">Needs the backend scanner; live header and certificate checks are not available in this browser demo.</div>':bar(r.m[k],r.m[k]<25?"ok":r.m[k]<50?"warn":"bad")}</div>`).join("")}</div>
+${a.imp?`<div class="card" style="border-color:var(--bad)"><h3 class="bad">Possible impersonation detected</h3>Target organisation: <b>${esc(a.imp.n)}</b><br>Suspicious domain: <b>${esc(r.host)}</b><ul>${a.imp.ev.map(e=>"<li>"+e+"</li>").join("")}</ul><span class="mut">A similarity match, not confirmed fraud.</span></div>`:""}
+<div class="grid"><div class="card"><h3 class="ok">Positive findings</h3><ul>${pos.map(p=>"<li>"+esc(p)+"</li>").join("")||"<li>None</li>"}</ul></div><div class="card"><h3 class="bad">Negative findings</h3><ul>${neg.map(p=>"<li>"+esc(p)+"</li>").join("")||"<li>None</li>"}</ul></div></div>
+${a.fx?`<div class="card"><h3>Website security checks</h3><div class="scroll"><table><tr><th>Check</th><th>Status</th><th>Severity</th><th>Explanation</th></tr>${a.fx.sec.map(s=>`<tr><td>${s[0]}</td><td>${st(s[1])}</td><td>${s[2]}</td><td>${s[3]} ${s[4]?"<br><span class=mut>Fix: "+s[4]+"</span>":""}</td></tr>`).join("")}</table></div></div>`:""}
+<div class="card"><h3>Community reputation</h3>${r.rep.n?`${r.rep.n} report(s) from ${r.rep.uniq} unique reporter(s), ${r.rep.ver} verified.`:"No reports yet. Absence of reports is not proof of safety."}</div>
+<div class="card"><h3>Recommended actions</h3><ul>${(r.recommendations||recs).map(x=>"<li>"+x+"</li>").join("")}</ul><button id="cp" class="alt" style="color:var(--blue);border-color:var(--blue)">Copy report summary</button> <span id="cpm" class="mut"></span>
+<details><summary>Technical details</summary><ul>${a.f.map(x=>`<li>+${x[0]} threat points: ${x[1]}</li>`).join("")||"<li>No URL indicators triggered.</li>"}</ul><span class="mut">ML classifier is not included in this prototype; scoring uses transparent URL heuristics.</span></details></div>
+<div class="card"><h3>Trust timeline</h3>${h.length>1?`<svg viewBox="0 0 300 120" style="width:100%;max-width:420px"><polyline fill="none" stroke="var(--blue)" stroke-width="3" points="${pts}"/></svg>`:'<span class="mut">First scan of this domain.</span>'}<ul>${h.slice().reverse().map(p=>`<li>${p[0]}: risk score ${p[1]}</li>`).join("")}</ul></div>`;
+ $("#cp").onclick=async()=>{const t=`TRUSTLENS: ${r.host} – risk ${r.score}/100 (${c}), confidence ${r.confL}.`;try{await navigator.clipboard.writeText(t);$("#cpm").textContent="Copied."}catch(e){$("#cpm").textContent=t}}},
+dashboard(){
+ $("#app").innerHTML=`<h1>Security dashboard</h1><p class="mut">Real-time aggregate trust intelligence and community reporting metrics from the live database.</p><div id="dash-content"><div class="card" style="text-align:center;padding:32px"><span class="mut">Loading live platform statistics…</span></div></div>`;
+ const catLabel=k=>{const found=CATS.find(c=>c[1]==k);return found?found[0]:(k||"Other")};
+ const loadStats=async()=>{
+  const target=$("#dash-content");
+  if(!target)return;
+  target.innerHTML='<div class="card" style="text-align:center;padding:32px"><span class="mut">Loading live platform statistics…</span></div>';
+  try{
+   const headers={};
+   const tok=sessionStorage.getItem('tl_guest_tok');
+   if(tok)headers['Authorization']='Bearer '+tok;
+   const res=await fetch('/api/dashboard/stats',{headers});
+   const json=await res.json().catch(()=>null);
+   if(!res.ok||!json||!json.ok){
+    const msg=(json&&json.error&&json.error.message)?json.error.message:("HTTP "+res.status);
+    target.innerHTML=`<div class="card bad"><h3>Unable to load dashboard statistics</h3><p>${esc(msg)}</p><button id="dash-retry" class="sm alt">Retry</button></div>`;
+    if($("#dash-retry"))$("#dash-retry").onclick=loadStats;
+    return;
+   }
+   const d=json.data;
+   const scansCount=Number(d.scans)||0;
+   const hiCount=Number(d.highRiskScans)||0;
+   const crCount=Number(d.criticalScans)||0;
+   const reportsCount=Number(d.reports)||0;
+   const verCount=Number(d.verifiedReports)||0;
+   const dist=d.riskDistribution||{low:0,moderate:0,high:0,critical:0};
+   const cats=d.categories||{};
+   const recentScans=d.recentScans||[];
+   const recentReports=d.recentReports||[];
+   const catEntries=Object.entries(cats);
+   target.innerHTML=`
+<div class="grid">${[
+  ["Websites scanned", scansCount, "Total live domain assessments"],
+  ["High-risk scans", hiCount, "Scans with risk score &ge; 50"],
+  ["Critical scans", crCount, "Scans with risk score &ge; 75"],
+  ["Community reports", reportsCount, "Crowdsourced domain submissions"],
+  ["Verified malicious domains", verCount, "Confirmed by reviewer investigation"]
+].map(a=>`<div class="card"><div class="stat">${a[1]}</div><b>${a[0]}</b><br><span class="mut" style="font-size:12px">${a[2]}</span></div>`).join("")}</div>
+
+<div class="grid" style="margin-top:8px">
+<div class="card"><h3>Live Scan Risk Distribution</h3>
+${scansCount===0?'<span class="mut">No live websites scanned yet. Scans will populate this distribution.</span>':`
+<div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>Low Risk (&lt; 25)</span><b>${dist.low}</b></div>${bar(scansCount?Math.round(dist.low/scansCount*100):0,"ok")}</div>
+<div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>Moderate Risk (25–49)</span><b>${dist.moderate}</b></div>${bar(scansCount?Math.round(dist.moderate/scansCount*100):0,"warn")}</div>
+<div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>High Risk (50–74)</span><b>${dist.high}</b></div>${bar(scansCount?Math.round(dist.high/scansCount*100):0,"bad")}</div>
+<div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>Critical Risk (&ge; 75)</span><b>${dist.critical}</b></div>${bar(scansCount?Math.round(dist.critical/scansCount*100):0,"bad")}</div>
+`}
+</div>
+
+<div class="card"><h3>Community Reports by Category</h3>
+${catEntries.length===0?'<span class="mut">No community reports submitted yet. Submit reports via <a href="#report" style="color:var(--blue)">Report a site</a>.</span>':`
+${catEntries.map(([k,v])=>`<div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>${esc(catLabel(k))}</span><b>${v}</b></div>${bar(reportsCount?Math.round(v/reportsCount*100):0,"blue")}</div>`).join("")}
+`}
+</div>
+</div>
+
+<div class="grid" style="margin-top:8px">
+<div class="card"><h3>Recent Live Scans</h3>
+${recentScans.length===0?'<span class="mut">No recent scans on record. <a href="#scan" style="color:var(--blue)">Scan a website</a> to begin.</span>':`
+${recentScans.map(s=>`<div style="margin:6px 0;padding-bottom:6px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
+<div><b>${esc(s.domainName||s.domain||'')}</b><br><span class="mut" style="font-size:12px">${s.createdAt?new Date(s.createdAt).toLocaleDateString():''}</span></div>
+<div><span class="pill ${s.riskScore>=50?'bad':s.riskScore>=25?'warn':'ok'}">${s.classification||(s.riskScore+'/100')}</span></div>
+</div>`).join("")}
+`}
+</div>
+
+<div class="card"><h3>Recent Community Reports</h3>
+${recentReports.length===0?'<span class="mut">No recent community reports on record.</span>':`
+${recentReports.map(r=>`<div style="margin:6px 0;padding-bottom:6px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
+<div><b>${esc(r.domainName||r.domain||'')}</b><br><span class="mut" style="font-size:12px">${esc(catLabel(r.category))} · ${r.createdAt?new Date(r.createdAt).toLocaleDateString():''}</span></div>
+<div><span class="pill ${r.status==='verified'?'bad':r.status==='under_verification'?'warn':r.status==='rejected'?'ok':'na'}">${(r.status||'').replace(/_/g,' ')}</span></div>
+</div>`).join("")}
+`}
+</div>
+</div>
+`;
+  }catch(err){
+   target.innerHTML=`<div class="card bad"><h3>Network Error</h3><p>${esc(err.message)}</p><button id="dash-retry" class="sm alt">Retry</button></div>`;
+   if($("#dash-retry"))$("#dash-retry").onclick=loadStats;
+  }
+ };
+ loadStats();
+},
+explorer(){
+ let curPage=1,searchTimer=null;
+ $("#app").innerHTML=`<h1>Threat intelligence explorer</h1>
+<p class="mut">Explore crowdsourced security reports submitted by the community. Reports in <b>Pending Review</b> or <b>Under Verification</b> are unconfirmed submissions and are not verified malicious verdicts.</p>
+<div class="row" style="margin-bottom:12px">
+<input id="q" placeholder="Search domain (e.g. example.com)" aria-label="Search domain" style="flex:2;min-width:200px">
+<select id="fc" aria-label="Category" style="flex:1;min-width:160px"><option value="">All categories</option>${CATS.map(c=>`<option value="${c[1]}">${c[0]}</option>`).join("")}</select>
+<select id="fs" aria-label="Status" style="flex:1;min-width:160px"><option value="">All statuses</option><option value="verified">Verified Malicious</option><option value="under_verification">Under Verification</option><option value="pending_review">Pending Review</option><option value="rejected">Rejected (False Positive)</option></select>
+<button id="fgo" class="sm">Search</button></div>
+<div id="exp-status" style="margin-bottom:8px"></div>
+<div class="card scroll" style="padding:0"><table id="tb" style="margin:0">
+<thead><tr><th>Domain</th><th>Category</th><th>Verification Status</th><th>Assessment</th><th>Submitted</th><th>Action</th></tr></thead>
+<tbody id="tb-body"></tbody></table></div>
+<div id="exp-pag" class="row" style="justify-content:space-between;align-items:center;margin-top:12px"></div>`;
+
+ const smMeta=st=>{
+  if(st=="verified")return{label:"Verified",pill:"bad",note:"Confirmed Malicious"};
+  if(st=="under_verification")return{label:"Under Verification",pill:"warn",note:"Unverified (Investigating)"};
+  if(st=="rejected")return{label:"Rejected",pill:"ok",note:"Dismissed / Benign"};
+  return{label:"Pending Review",pill:"na",note:"Unverified Submission"};
+ };
+ const catLabel=k=>{const found=CATS.find(c=>c[1]==k);return found?found[0]:(k||"Other")};
+
+ const loadReports=async(page=1)=>{
+  curPage=page;
+  const q=($("#q")?$("#q").value:"").trim(),cat=$("#fc")?$("#fc").value:"",st=$("#fs")?$("#fs").value:"";
+  const tb=$("#tb-body"),pag=$("#exp-pag"),stat=$("#exp-status");
+  if(!tb)return;
+  tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px"><span class="mut">Loading community reports…</span></td></tr>';
+  if(pag)pag.innerHTML='';if(stat)stat.innerHTML='';
+  const params=new URLSearchParams();
+  if(q)params.set("q",q);if(cat)params.set("category",cat);if(st)params.set("status",st);
+  params.set("page",String(page));params.set("limit","15");
+  try{
+   const res=await fetch("/api/reports?"+params.toString());
+   const json=await res.json().catch(()=>null);
+   if(!res.ok||!json||!json.ok){
+    const msg=(json&&json.error&&json.error.message)?json.error.message:("HTTP "+res.status);
+    tb.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px" class="bad">Unable to load threat reports: ${esc(msg)}<br><button id="retry-btn" class="sm alt" style="margin-top:8px">Retry</button></td></tr>`;
+    if($("#retry-btn"))$("#retry-btn").onclick=()=>loadReports(curPage);
+    return;
+   }
+   const d=json.data,reports=d.reports||[],p=d.pagination||{page:1,totalPages:1,total:0};
+   if(!reports.length){
+    tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:32px" class="mut">No community threat reports found matching your criteria.<br><a href="#report" style="color:var(--blue);font-weight:600;display:inline-block;margin-top:6px">Report a suspicious website</a></td></tr>';
+    if(stat)stat.innerHTML='<span class="mut">Showing 0 reports</span>';
+    return;
+   }
+   if(stat)stat.innerHTML=`<span class="mut">Showing ${reports.length} of ${p.total} community report(s) (Page ${p.page} of ${p.totalPages})</span>`;
+   tb.innerHTML=reports.map(r=>{
+    const sm=smMeta(r.status),dom=esc(r.domain),dStr=r.createdAt?new Date(r.createdAt).toLocaleDateString():"—";
+    return`<tr><td><b>${dom}</b>${r.description?`<br><span class="mut" style="font-size:12px">${esc(r.description)}</span>`:""}</td><td>${esc(catLabel(r.category))}</td><td><span class="pill ${sm.pill}">${sm.label}</span></td><td><span class="mut" style="font-size:12px">${sm.note}</span></td><td class="mut" style="font-size:13px">${dStr}</td><td><a href="#scan" class="scan-link" data-domain="${dom}" style="color:var(--blue);text-decoration:none;font-weight:600;font-size:13px">Scan &rarr;</a></td></tr>`;
+   }).join("");
+   document.querySelectorAll(".scan-link").forEach(a=>{
+    a.onclick=(e)=>{
+     e.preventDefault();const target=a.dataset.domain;location.hash="#scan";
+     setTimeout(()=>{const inp=$("#u");if(inp){inp.value="https://"+target;const go=$("#go");if(go)go.click()}},60);
+    };
+   });
+   if(pag){
+    pag.innerHTML=`<div>${p.page>1?'<button id="prev-btn" class="sm alt">&larr; Previous</button>':''}${p.page<p.totalPages?'<button id="next-btn" class="sm alt" style="margin-left:8px">Next &rarr;</button>':''}</div><div class="mut" style="font-size:13px">Page ${p.page} of ${p.totalPages}</div>`;
+    if($("#prev-btn"))$("#prev-btn").onclick=()=>loadReports(p.page-1);
+    if($("#next-btn"))$("#next-btn").onclick=()=>loadReports(p.page+1);
+   }
+  }catch(err){
+   tb.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px" class="bad">Network connection error: ${esc(err.message)}<br><button id="retry-btn" class="sm alt" style="margin-top:8px">Retry</button></td></tr>`;
+   if($("#retry-btn"))$("#retry-btn").onclick=()=>loadReports(curPage);
+  }
+ };
+ const deb=()=>{if(searchTimer)clearTimeout(searchTimer);searchTimer=setTimeout(()=>loadReports(1),350)};
+ $("#q").oninput=deb;$("#fc").onchange=()=>loadReports(1);$("#fs").onchange=()=>loadReports(1);$("#fgo").onclick=()=>loadReports(1);
+ loadReports(1);
+},
+report(){$("#app").innerHTML=`<h1>Report a suspicious website</h1><p class="mut">Reporter identities are never shown publicly. One report does not mark a site malicious; reviewers verify first.</p><div class="card"><label>Website URL<br><input id="ru" style="width:100%"></label><br><br><label>Category<br><select id="rc">${CATS.map(c=>`<option value="${c[1]}">${c[0]}</option>`).join("")}</select></label><br><br><label>What happened?<br><textarea id="rd" rows="3" maxlength="500"></textarea></label><br><br><button id="rs">Submit report</button><div id="rm" style="margin-top:12px"></div></div>`;
+ $("#rs").onclick=async()=>{
+  const x=parse($("#ru").value);
+  if(!x)return $("#rm").innerHTML='<span class="bad">Enter a valid http or https website address.</span>';
+  const catEntry=CATS[$("#rc").selectedIndex],catLabel=catEntry[0],catKey=catEntry[1];
+  $("#rs").disabled=true;$("#rm").innerHTML='<span class="mut">Submitting…</span>';
+  try{
+    let tok=sessionStorage.getItem('tl_guest_tok');
+    if(!tok){
+      const gr=await fetch('/api/auth/guest',{method:'POST',headers:{'Content-Type':'application/json'}}).catch(()=>null);
+      if(gr&&gr.ok){const gj=await gr.json().catch(()=>null);if(gj&&gj.ok)tok=gj.data.token;}
+      if(tok)sessionStorage.setItem('tl_guest_tok',tok);
+    }
+    if(!tok)throw Object.assign(new Error('Backend unavailable.'),{offline:true});
+    const res=await fetch('/api/reports',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({url:x.href,category:catKey,description:$("#rd").value.trim().slice(0,500)||undefined})
+    });
+    const json=await res.json().catch(()=>null);
+    if(res.status===409&&json&&json.error&&json.error.code==='DUPLICATE_REPORT'){
+      $("#rm").innerHTML='<span class="warn">You already submitted a report for this domain in this category.</span>';
+    }else if(res.ok&&json&&json.ok){
+      const d=json.data,tid='TL-'+String(d.id).slice(-6);
+      const domKey=x.hostname.toLowerCase();
+      if(!S.reports.find(r=>r.domain==domKey&&r.cat==catKey)){
+        S.reports.push({id:d.id,domain:domKey,cat:catKey,desc:$("#rd").value.trim().slice(0,500),status:d.status.replace(/_/g,' '),users:[me],first:today,last:today});
+      }
+      $("#rm").innerHTML='<div class="card" style="border-color:var(--ok);padding:12px"><b class="ok">✓ Report submitted.</b><br>Tracking ID: <b>'+esc(tid)+'</b> · Status: <b>'+esc(d.status.replace(/_/g,' '))+'</b><br><span class="mut">Reviewers examine every report before any domain is marked malicious. One report alone is not a verdict.</span></div>';
+      $("#ru").value='';$("#rd").value='';
+    }else{
+      throw new Error(json&&json.error&&json.error.message?json.error.message:'Submission failed (HTTP '+res.status+').');
+    }
+  }catch(e){
+    if(e.offline||e.message==='Backend unavailable.'||e.message.indexOf('fetch')!==-1||e.message.indexOf('Failed to fetch')!==-1){
+      const d=x.hostname.toLowerCase();
+      let r=S.reports.find(r=>r.domain==d&&r.cat==catKey),dup=false;
+      if(r){if(r.users.includes(me))dup=true;else{r.users.push(me);r.last=today;}}
+      else{r={id:Date.now(),domain:d,cat:catKey,desc:$("#rd").value.trim().slice(0,500),status:'Pending Review',users:[me],first:today,last:today};S.reports.push(r);}
+      $("#rm").innerHTML=dup
+        ?'<span class="warn">You already reported this site for this category (session only).</span>'
+        :'<span class="ok">Report saved locally.</span> <span class="demo">DEMO DATA</span> Tracking ID <b>TL-'+String(r.id).slice(-5)+'</b><br><span class="mut">Backend is offline — this report is not persisted.</span>';
+    }else{
+      $("#rm").innerHTML='<span class="bad">Submission failed: '+esc(e.message)+'</span>';
+    }
+  }finally{$("#rs").disabled=false;}
+  };
+ },
+cert(){
+  $("#app").innerHTML=`<h1>Certificate intelligence</h1>
+<div class="row">
+  <input id="cd" placeholder="Enter domain (e.g. example.com)" aria-label="Domain" style="flex:2;min-width:220px">
+  <button id="cs">Check certificate</button>
+</div>
+<div id="cr" style="margin-top:14px"></div>
+<p class="mut" style="margin-top:16px">Certificate Transparency and TLS certificates verify encryption in transit and domain identity at issuance. They do <b>not</b> guarantee that a website's intent is benign or free from fraud.</p>`;
+
+  const doCheck = async (initialDomain) => {
+    let d = (initialDomain !== undefined ? initialDomain : ($("#cd") ? $("#cd").value : '')).trim().toLowerCase();
+    d = d.replace(/^[a-z]+:\/\//, '').split('/')[0].split('?')[0].split('#')[0].split(':')[0];
+    if ($("#cd")) $("#cd").value = d;
+    const cr = $("#cr");
+    if (!cr) return;
+
+    if (!d) {
+      cr.innerHTML = '<div class="card warn">Please enter a valid domain name to inspect (e.g. example.com).</div>';
+      return;
+    }
+
+    cr.innerHTML = `<div class="card"><p class="mut">Querying certificate intelligence for <b>${esc(d)}</b>…</p></div>`;
+
+    try {
+      const res = await fetch('/api/certificates/' + encodeURIComponent(d));
+      const json = await res.json().catch(() => null);
+
+      if (res.status === 404) {
+        cr.innerHTML = `<div class="card">
+          <h3>No Certificate Record on File</h3>
+          <p class="mut">No live certificate record exists for <b>${esc(d)}</b> in TrustLens intelligence yet.</p>
+          <p>TrustLens inspects TLS peer certificates and chain validity during website scans.</p>
+          <div style="margin-top:14px">
+            <a href="#scan" style="display:inline-block;padding:8px 14px;background:var(--blue);color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Scan ${esc(d)} now</a>
+          </div>
+        </div>`;
+        return;
+      }
+
+      if (!res.ok || !json || !json.ok) {
+        const errMsg = json?.error?.message || `Server returned HTTP ${res.status}`;
+        cr.innerHTML = `<div class="card bad">
+          <h3>Certificate Check Failed</h3>
+          <p>${esc(errMsg)}</p>
+          <button id="cr-retry" class="sm alt">Retry</button>
+        </div>`;
+        if ($("#cr-retry")) $("#cr-retry").onclick = () => doCheck(d);
+        return;
+      }
+
+      const c = json.data;
+      const days = typeof c.daysRemaining === 'number' ? c.daysRemaining : null;
+      const daysPill = days === null ? '<span class="pill na">Unknown</span>'
+        : days < 0 ? `<span class="pill bad">Expired (${Math.abs(days)}d ago)</span>`
+        : days < 14 ? `<span class="pill warn">Expiring Soon (${days}d left)</span>`
+        : `<span class="pill ok">Valid (${days} days)</span>`;
+
+      const matchPill = c.hostnameMatch ? '<span class="pill ok">✓ Matches domain</span>' : '<span class="pill bad">✗ Hostname mismatch</span>';
+      const chainPill = c.chainValid ? '<span class="pill ok">✓ Verified trusted CA</span>' : '<span class="pill bad">✗ Untrusted chain</span>';
+
+      const validFromStr = c.validFrom ? new Date(c.validFrom).toLocaleDateString() : 'Not recorded';
+      const validToStr = c.validTo ? new Date(c.validTo).toLocaleDateString() : 'Not recorded';
+
+      cr.innerHTML = `
+        <div style="margin-bottom:12px;padding:10px 14px;border-radius:8px;background:rgba(37,99,235,0.08);border-left:4px solid var(--blue);font-size:13px">
+          <b>Security Notice:</b> A valid TLS certificate indicates encrypted transport and hostname issuance. It does <b>not</b> prove website legitimacy or absence of phishing.
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+            <h3 style="margin:0">${esc(c.domain || d)}</h3>
+            <div>${daysPill}</div>
+          </div>
+          <table>
+            <tr><td style="width:180px"><b>Issuer Authority</b></td><td>${esc(c.issuer || 'Unknown CA')}</td></tr>
+            <tr><td><b>Subject Name</b></td><td>${esc(c.subject || c.domain || 'Unknown')}</td></tr>
+            <tr><td><b>Validity Period</b></td><td>${esc(validFromStr)} to ${esc(validToStr)}</td></tr>
+            <tr><td><b>Hostname Match</b></td><td>${matchPill}</td></tr>
+            <tr><td><b>CA Chain Verification</b></td><td>${chainPill}</td></tr>
+            <tr><td><b>Subject Alt Names (SAN)</b></td><td>${c.san && c.san.length ? esc(c.san.join(', ')) : '<span class="mut">None listed</span>'}</td></tr>
+            ${(() => {
+              if (typeof c.ct === 'string') {
+                return '<tr><td><b>Transparency Observations</b></td><td>' + esc(c.ct) + '</td></tr>';
+              }
+              if (c.ct && typeof c.ct === 'object') {
+                const ct = c.ct;
+                const stPill = ct.status === 'available'
+                  ? '<span class="pill ok">Available (crt.sh)</span>'
+                  : ct.status === 'cached'
+                  ? '<span class="pill ok">Cached (12h TTL)</span>'
+                  : ct.status === 'unavailable'
+                  ? '<span class="pill warn">Unavailable</span>'
+                  : '<span class="pill na">Not Fetched</span>';
+
+                let rows = '<tr><td><b>CT Log Status</b></td><td>' + stPill + '</td></tr>';
+                if (ct.status === 'available' || ct.status === 'cached') {
+                  const totalStr = typeof ct.totalLogged === 'number' ? (ct.totalLogged + ' certificate(s) logged') : '0 logged';
+                  const earliestStr = ct.earliest ? new Date(ct.earliest).toLocaleDateString() : 'N/A';
+                  const latestStr = ct.latest ? new Date(ct.latest).toLocaleDateString() : 'N/A';
+                  const sansStr = Array.isArray(ct.discoveredSANs) && ct.discoveredSANs.length > 0
+                    ? esc(ct.discoveredSANs.slice(0, 10).join(', ')) + (ct.discoveredSANs.length > 10 ? ' …' : '')
+                    : '<span class="mut">None listed</span>';
+
+                  rows += '<tr><td><b>Total Certificates Logged</b></td><td>' + esc(totalStr) + '</td></tr>' +
+                          '<tr><td><b>First Logged In CT</b></td><td>' + esc(earliestStr) + '</td></tr>' +
+                          '<tr><td><b>Latest CT Entry</b></td><td>' + esc(latestStr) + '</td></tr>' +
+                          '<tr><td><b>CT Observed Names (SAN)</b></td><td>' + sansStr + '</td></tr>';
+                }
+                if (ct.note) {
+                  rows += '<tr><td><b>CT Intelligence Note</b></td><td><span class="mut">' + esc(ct.note) + '</span></td></tr>';
+                }
+                if (ct.disclaimer) {
+                  rows += '<tr><td><b>CT Disclaimer</b></td><td><span class="mut" style="font-size:11px">' + esc(ct.disclaimer) + '</span></td></tr>';
+                }
+                return rows;
+              }
+              return '<tr><td><b>Transparency Observations</b></td><td><span class="mut">Observed via direct TLS peer certificate inspection.</span></td></tr>';
+            })()}
+            <tr><td><b>Last Verified</b></td><td><span class="mut">${c.observedAt ? new Date(c.observedAt).toLocaleString() : 'Recent'}</span></td></tr>
+          </table>
+          <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <a href="#scan" style="color:var(--blue);text-decoration:none;font-weight:600;font-size:13px">Run full security scan on this domain →</a>
+            <span class="mut" style="font-size:12px">Mode: ${esc(c.mode || json.meta?.mode || 'live')}</span>
+          </div>
+        </div>`;
+    } catch (err) {
+      cr.innerHTML = `<div class="card bad">
+        <h3>Network Error</h3>
+        <p>${esc(err.message || 'Unable to connect to backend.')}</p>
+        <button id="cr-retry" class="sm alt">Retry</button>
+      </div>`;
+      if ($("#cr-retry")) $("#cr-retry").onclick = () => doCheck(d);
+    }
+  };
+
+  $("#cs").onclick = () => doCheck();
+  $("#cd").onkeydown = (e) => { if (e.key === 'Enter') doCheck(); };
+},
+admin(){
+  let token = sessionStorage.getItem('tl_admin_token');
+  let user = null;
+  try { user = JSON.parse(sessionStorage.getItem('tl_admin_user') || 'null'); } catch {}
+
+  if (!token || !user || user.role !== 'admin') {
+    $("#app").innerHTML = `<h1>Administrator Sign In</h1>
+<div class="card" style="max-width:440px">
+  <p class="mut">Restricted access for TrustLens security analysts and reviewers.</p>
+  <div id="alm" style="margin-bottom:12px"></div>
+  <label style="display:block;margin:10px 0 4px;font-size:13px;font-weight:600">Admin Email</label>
+  <input id="ae" type="email" placeholder="admin@trustlens.internal" style="width:100%" aria-label="Admin Email">
+  <label style="display:block;margin:10px 0 4px;font-size:13px;font-weight:600">Password</label>
+  <input id="ap" type="password" placeholder="••••••••••••" style="width:100%" aria-label="Password">
+  <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">
+    <button id="asb">Sign In as Admin</button>
+  </div>
+</div>`;
+
+    const doLogin = async () => {
+      const email = ($("#ae") ? $("#ae").value : '').trim();
+      const password = $("#ap") ? $("#ap").value : '';
+      const alm = $("#alm");
+      const btn = $("#asb");
+      if (!email || !password) {
+        if (alm) alm.innerHTML = '<span class="bad">Please enter both email and password.</span>';
+        return;
+      }
+      if (btn) btn.disabled = true;
+      if (alm) alm.innerHTML = '<span class="mut">Authenticating credentials…</span>';
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json || !json.ok) {
+          const err = json?.error?.message || `Sign in failed (HTTP ${res.status})`;
+          if (alm) alm.innerHTML = `<span class="bad">${esc(err)}</span>`;
+          if (btn) btn.disabled = false;
+          return;
+        }
+        if (json.data.user.role !== 'admin') {
+          if (alm) alm.innerHTML = '<span class="bad">Access denied: This account does not possess administrator privileges.</span>';
+          if (btn) btn.disabled = false;
+          return;
+        }
+        sessionStorage.setItem('tl_admin_token', json.data.token);
+        sessionStorage.setItem('tl_admin_user', JSON.stringify(json.data.user));
+        V.admin();
+      } catch (e) {
+        if (alm) alm.innerHTML = `<span class="bad">Network error: ${esc(e.message)}</span>`;
+        if (btn) btn.disabled = false;
+      }
+    };
+
+    if ($("#asb")) $("#asb").onclick = doLogin;
+    if ($("#ap")) $("#ap").onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
+    if ($("#ae")) $("#ae").onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
+    return;
+  }
+
+  // Authenticated Admin Console
+  let activeTab = 'reports';
+  const renderShell = () => {
+    $("#app").innerHTML = `<h1>Administrator Console</h1>
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+  <div><b>Reviewer:</b> ${esc(user.name)} (${esc(user.email)}) <span class="pill ok">Admin Active</span></div>
+  <button id="ao" class="sm alt" style="color:var(--bad);border-color:var(--bad)">Sign Out</button>
+</div>
+<div class="row" style="margin-bottom:14px;gap:8px">
+  <button id="tab-rep" class="sm ${activeTab === 'reports' ? '' : 'alt'}">Community Reports</button>
+  <button id="tab-aud" class="sm ${activeTab === 'audit' ? '' : 'alt'}">Audit Trail</button>
+  <button id="tab-fed" class="sm ${activeTab === 'feeds' ? '' : 'alt'}">External Threat Feeds</button>
+</div>
+<div id="admin-view"></div>`;
+
+    if ($("#ao")) $("#ao").onclick = () => {
+      sessionStorage.removeItem('tl_admin_token');
+      sessionStorage.removeItem('tl_admin_user');
+      V.admin();
+    };
+    if ($("#tab-rep")) $("#tab-rep").onclick = () => { activeTab = 'reports'; renderShell(); loadReportsView(); };
+    if ($("#tab-aud")) $("#tab-aud").onclick = () => { activeTab = 'audit'; renderShell(); loadAuditView(); };
+    if ($("#tab-fed")) $("#tab-fed").onclick = () => { activeTab = 'feeds'; renderShell(); loadFeedsView(); };
+  };
+
+  // 1. Reports Moderation View
+  const loadReportsView = async (filterStatus = '') => {
+    const view = $("#admin-view");
+    if (!view) return;
+    view.innerHTML = `<div class="row" style="margin-bottom:10px;gap:6px">
+      <button class="sm ${filterStatus === '' ? '' : 'alt'}" data-st="">All Reports</button>
+      <button class="sm ${filterStatus === 'pending_review' ? '' : 'alt'}" data-st="pending_review">Pending Review</button>
+      <button class="sm ${filterStatus === 'under_verification' ? '' : 'alt'}" data-st="under_verification">Under Verification</button>
+      <button class="sm ${filterStatus === 'verified' ? '' : 'alt'}" data-st="verified">Verified Malicious</button>
+      <button class="sm ${filterStatus === 'rejected' ? '' : 'alt'}" data-st="rejected">Rejected</button>
+    </div>
+    <div id="adm-reports-content"><p class="mut">Loading community reports…</p></div>`;
+
+    view.querySelectorAll('[data-st]').forEach(b => {
+      b.onclick = () => loadReportsView(b.dataset.st);
+    });
+
+    const contentDiv = $("#adm-reports-content");
+    try {
+      const q = filterStatus ? ('?status=' + encodeURIComponent(filterStatus)) : '';
+      const res = await fetch('/api/admin/reports' + q, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json || !json.ok) {
+        contentDiv.innerHTML = `<div class="card bad">Failed to load reports: ${esc(json?.error?.message || 'Unauthorized')}</div>`;
+        return;
+      }
+      const reports = json.data.reports || [];
+      if (!reports.length) {
+        contentDiv.innerHTML = '<div class="card"><p class="mut">No reports found matching this filter.</p></div>';
+        return;
+      }
+      contentDiv.innerHTML = `<div class="card scroll" style="padding:0"><table style="margin:0">
+        <thead><tr><th>Domain</th><th>Category</th><th>Description</th><th>Status</th><th>Submitted</th><th>Action</th></tr></thead>
+        <tbody>${reports.map(r => `<tr>
+          <td><b>${esc(r.domain)}</b></td>
+          <td>${esc(r.category)}</td>
+          <td><span class="mut" style="font-size:12px">${esc(r.description || '—')}</span></td>
+          <td><span class="pill ${r.status === 'verified' ? 'bad' : r.status === 'under_verification' ? 'warn' : r.status === 'rejected' ? 'ok' : 'na'}">${(r.status || '').replace(/_/g, ' ')}</span></td>
+          <td class="mut" style="font-size:12px">${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
+          <td style="white-space:nowrap">
+            ${r.status !== 'under_verification' ? `<button class="sm alt" data-act="under_verification" data-id="${r.id}" style="color:var(--warn);border-color:var(--warn);margin-right:4px">Investigate</button>` : ''}
+            ${r.status !== 'verified' ? `<button class="sm alt" data-act="verified" data-id="${r.id}" style="color:var(--bad);border-color:var(--bad);margin-right:4px">Verify</button>` : ''}
+            ${r.status !== 'rejected' ? `<button class="sm alt" data-act="rejected" data-id="${r.id}" style="color:var(--ok);border-color:var(--ok)">Reject</button>` : ''}
+          </td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+
+      contentDiv.querySelectorAll('[data-act]').forEach(b => {
+        b.onclick = async () => {
+          const repId = b.dataset.id;
+          const newStatus = b.dataset.act;
+          b.disabled = true;
+          try {
+            const pRes = await fetch('/api/admin/reports/' + repId, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+              },
+              body: JSON.stringify({ status: newStatus }),
+            });
+            const pJson = await pRes.json().catch(() => null);
+            if (pRes.ok && pJson && pJson.ok) {
+              loadReportsView(filterStatus);
+            } else {
+              alert('Update failed: ' + (pJson?.error?.message || 'Server error'));
+              b.disabled = false;
+            }
+          } catch (e) {
+            alert('Network error: ' + e.message);
+            b.disabled = false;
+          }
+        };
+      });
+    } catch (e) {
+      contentDiv.innerHTML = `<div class="card bad">Network error loading reports: ${esc(e.message)}</div>`;
+    }
+  };
+
+  // 2. Audit Trail View
+  const loadAuditView = async () => {
+    const view = $("#admin-view");
+    if (!view) return;
+    view.innerHTML = '<div class="card"><p class="mut">Loading system audit trail…</p></div>';
+    try {
+      const res = await fetch('/api/admin/audit?limit=25', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json || !json.ok) {
+        view.innerHTML = `<div class="card bad">Failed to load audit logs: ${esc(json?.error?.message || 'Unauthorized')}</div>`;
+        return;
+      }
+      const logs = json.data.auditLogs || [];
+      if (!logs.length) {
+        view.innerHTML = '<div class="card"><p class="mut">No audit entries recorded yet.</p></div>';
+        return;
+      }
+      view.innerHTML = `<div class="card scroll" style="padding:0"><table style="margin:0">
+        <thead><tr><th>Timestamp</th><th>Actor</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
+        <tbody>${logs.map(l => `<tr>
+          <td class="mut" style="font-size:12px">${l.createdAt ? new Date(l.createdAt).toLocaleString() : '—'}</td>
+          <td><b>${esc(l.actor ? l.actor.name : 'System')}</b><br><span class="mut" style="font-size:11px">${esc(l.actor ? l.actor.role : '')}</span></td>
+          <td><span class="pill ${l.action.includes('verified') ? 'bad' : 'warn'}">${esc(l.action)}</span></td>
+          <td style="font-size:12px"><code>${esc(l.targetType || '—')} ${esc(l.targetId || '')}</code></td>
+          <td><span class="mut" style="font-size:12px">${esc(l.detail ? JSON.stringify(l.detail) : '—')}</span></td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+    } catch (e) {
+      view.innerHTML = `<div class="card bad">Network error loading audit trail: ${esc(e.message)}</div>`;
+    }
+  };
+
+  // 3. External Feeds View
+  const loadFeedsView = async () => {
+    const view = $("#admin-view");
+    if (!view) return;
+    view.innerHTML = '<div class="card"><p class="mut">Loading threat feed statistics…</p></div>';
+    try {
+      const res = await fetch('/api/admin/threat-intel/status', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json || !json.ok) {
+        view.innerHTML = `<div class="card bad">Failed to load feed status: ${esc(json?.error?.message || 'Unauthorized')}</div>`;
+        return;
+      }
+      const d = json.data;
+      const sources = d.sourcesConfig || [];
+      view.innerHTML = `<div class="grid">
+        <div class="card">
+          <div class="stat">${d.databaseTotal || 0}</div>
+          <div class="mut">Total External Indicators Persisted</div>
+        </div>
+        <div class="card">
+          <div class="stat" style="font-size:18px;margin-top:6px">${d.lastSyncAt ? new Date(d.lastSyncAt).toLocaleString() : 'Never synced'}</div>
+          <div class="mut">Last Synchronization</div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+          <h3 style="margin:0">Configured Threat Intelligence Feeds</h3>
+          <button id="sync-btn" class="sm">Sync Threat Feeds Now</button>
+        </div>
+        <div id="sync-msg"></div>
+        <table>
+          <thead><tr><th>Feed Name</th><th>Category</th><th>Terms & License</th><th>Last Status</th><th>Stored Count</th></tr></thead>
+          <tbody>${sources.map(s => `<tr>
+            <td><b>${esc(s.name)}</b></td>
+            <td><span class="pill bad">${esc(s.category)}</span></td>
+            <td><span class="mut" style="font-size:12px">${esc(s.license)}</span></td>
+            <td><span class="pill ${s.lastStatus === 'success' ? 'ok' : s.lastStatus === 'failed' ? 'bad' : 'na'}">${esc(s.lastStatus)}</span></td>
+            <td><b>${(d.bySource && d.bySource[s.id]) || 0}</b></td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+
+      const syncBtn = $("#sync-btn");
+      if (syncBtn) {
+        syncBtn.onclick = async () => {
+          syncBtn.disabled = true;
+          const msg = $("#sync-msg");
+          if (msg) msg.innerHTML = '<p class="mut">Synchronizing external feeds (URLhaus & OpenPhish)…</p>';
+          try {
+            const sRes = await fetch('/api/admin/threat-intel/sync', {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const sJson = await sRes.json().catch(() => null);
+            if (sRes.ok && sJson && sJson.ok) {
+              if (msg) msg.innerHTML = `<div class="card ok" style="padding:10px">✓ Synchronization complete! Ingested ${sJson.data.totalIngested} new threat indicators.</div>`;
+              setTimeout(loadFeedsView, 1200);
+            } else {
+              if (msg) msg.innerHTML = `<div class="card bad" style="padding:10px">Sync failed: ${esc(sJson?.error?.message || 'Server error')}</div>`;
+              syncBtn.disabled = false;
+            }
+          } catch (e) {
+            if (msg) msg.innerHTML = `<div class="card bad" style="padding:10px">Network error: ${esc(e.message)}</div>`;
+            syncBtn.disabled = false;
+          }
+        };
+      }
+    } catch (e) {
+      view.innerHTML = `<div class="card bad">Network error loading feeds view: ${esc(e.message)}</div>`;
+    }
+  };
+
+  renderShell();
+  loadReportsView();
+},
+async function openScan(id){nav();$("#app").innerHTML=`<div class="card"><b>Loading scan ${esc(id)}…</b></div>`;try{const res=await fetch('/api/scans/'+id);const j=await res.json();if(res.ok&&j&&j.ok){last=j.data;V.scan();V.result(last)}else{$("#app").innerHTML=`<div class="card bad"><h3>Unable to open scan</h3><p>${esc(j?.error?.message||'Scan not found.')}</p><a href="#scan">Back to scanner</a></div>`}}catch(e){$("#app").innerHTML=`<div class="card bad"><h3>Network error</h3><p>${esc(e.message)}</p><a href="#scan">Back to scanner</a></div>`}}
+function route(){const k=location.hash.slice(1)||"scan";if(k.startsWith("scan-")){openScan(k.slice(5));return}nav();(V[k]||V.scan)()}
+addEventListener("hashchange",route);route();
+</script></body></html>

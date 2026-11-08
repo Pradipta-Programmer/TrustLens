@@ -1,0 +1,12 @@
+const r = require('express').Router();
+const { planned } = require('../utils/http');
+r.use('/health', require('./health'));
+r.use('/auth', require('./auth'));
+r.use('/users', require('./users'));
+r.use('/reports', require('./reports'));
+r.use('/threats', require('./reports'));
+r.use('/admin', require('./admin'));
+r.use('/dashboard', require('./dashboard'));
+r.use('/scans', require('./scans'));
+r.use('/certificates', require('./certificates'));
+module.exports = r;
