@@ -1,9 +1,25 @@
+const crypto = require('node:crypto');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const config = require('../config');
 const { dbReady } = require('../config/db');
 const { ApiError } = require('../utils/http');
 const logger = require('../utils/logger');
+const { asyncLocalStorage } = require('../utils/logger');
+
+const correlationId = (req, res, next) => {
+  const rawId = req.headers['x-request-id'];
+  const isValid = typeof rawId === 'string' && /^[a-zA-Z0-9_-]{8,64}$/.test(rawId);
+  const reqId = isValid ? rawId : crypto.randomUUID();
+
+  req.id = reqId;
+  res.setHeader('X-Request-Id', reqId);
+
+  asyncLocalStorage.run({ reqId }, () => {
+    next();
+  });
+};
+
 const requireDb = (req, res, next) => dbReady() ? next() : next(new ApiError(503, 'DB_UNAVAILABLE', 'Database is unavailable.'));
 const authenticate = (req, res, next) => {
   const h = req.headers.authorization || '';
@@ -28,4 +44,4 @@ const errorHandler = (err, req, res, next) => {
   if (!known) logger.error('Unhandled error', { path: req.path, reason: err.message });
   res.status(status).json({ ok: false, error: { code: err.code || 'INTERNAL_ERROR', message: known ? err.message : (status >= 500 ? 'Internal server error.' : err.message), ...(err.details && { details: err.details }) } });
 };
-module.exports = { requireDb, authenticate, requireRole, validate, limiter, notFound, errorHandler };
+module.exports = { correlationId, requireDb, authenticate, requireRole, validate, limiter, notFound, errorHandler };

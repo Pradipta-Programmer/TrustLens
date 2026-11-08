@@ -11,6 +11,7 @@ const Scan = require('../models/Scan');
 const Domain = require('../models/Domain');
 const CertificateRecord = require('../models/CertificateRecord');
 const { assessWebsite } = require('../modules');
+const { safeFetch } = require('../security/safeFetcher');
 const { validateUrlSyntax } = require('../security/urlGuard');
 const { ok, ApiError, wrap } = require('../utils/http');
 const { requireDb, authenticate, validate, limiter } = require('../middleware');
@@ -64,41 +65,62 @@ router.post(
     const parsedUrl = syntax.url;
     const hostname = parsedUrl.hostname.toLowerCase();
 
-    // Query CT intelligence (with caching, in-flight deduplication, and bounded latency)
-    let ctResult = null;
-    try {
-      let existingCert = null;
+    // Concurrently execute CT intelligence query and network safeFetch
+    const ctPromise = (async () => {
       try {
-        existingCert = await CertificateRecord.findOne({ domainName: hostname }).lean();
-      } catch {}
+        let existingCert = null;
+        try {
+          existingCert = await CertificateRecord.findOne({ domainName: hostname }).lean();
+        } catch {}
 
-      if (existingCert && crtshClient.isCacheFresh(existingCert.ctFetchedAt)) {
-        ctResult = await crtshClient.queryCT(hostname, { cachedDoc: existingCert });
-      } else {
-        let ctPromise = inFlightCT.get(hostname);
-        if (!ctPromise) {
-          ctPromise = crtshClient.queryCT(hostname, {
+        if (existingCert && crtshClient.isCacheFresh(existingCert.ctFetchedAt)) {
+          return await crtshClient.queryCT(hostname, { cachedDoc: existingCert });
+        }
+
+        let p = inFlightCT.get(hostname);
+        if (!p) {
+          p = crtshClient.queryCT(hostname, {
             cachedDoc: existingCert,
           }).finally(() => {
             inFlightCT.delete(hostname);
           });
-          inFlightCT.set(hostname, ctPromise);
+          inFlightCT.set(hostname, p);
         }
+
         // Strict bounded wait (max 2500ms): CT failures or timeouts must never block or fail the scan
-        ctResult = await Promise.race([
-          ctPromise,
+        return await Promise.race([
+          p,
           new Promise((resolve) => setTimeout(() => resolve(null), 2500)),
         ]);
+      } catch {
+        return null;
       }
-    } catch {
-      // CT lookup failures must never fail an otherwise successful website scan
-      ctResult = null;
+    })();
+
+    const fetchPromise = (async () => {
+      try {
+        const res = await safeFetch(parsedUrl.href);
+        return { fetchResult: res, fetchError: null };
+      } catch (err) {
+        return { fetchResult: null, fetchError: err };
+      }
+    })();
+
+    const [ctResult, fetchOutcome] = await Promise.all([ctPromise, fetchPromise]);
+
+    if (fetchOutcome.fetchError && fetchOutcome.fetchError.name === 'SafeFetchError' && fetchOutcome.fetchError.code === 'SSRF_BLOCKED') {
+      throw new ApiError(400, 'SSRF_BLOCKED', fetchOutcome.fetchError.message);
     }
 
-    // Execute multi-layer assessment pipeline
+    // Execute multi-layer assessment pipeline with pre-fetched assets
     let assessment;
     try {
-      assessment = await assessWebsite(parsedUrl.href, { ct: ctResult });
+      assessment = await assessWebsite(parsedUrl.href, {
+        ct: ctResult,
+        skipFetch: true,
+        fetchResult: fetchOutcome.fetchResult,
+        fetchError: fetchOutcome.fetchError,
+      });
     } catch (err) {
       if (err.name === 'SafeFetchError' && err.code === 'SSRF_BLOCKED') {
         throw new ApiError(400, 'SSRF_BLOCKED', err.message);

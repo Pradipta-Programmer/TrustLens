@@ -480,11 +480,37 @@ admin(){
   let user = null;
   try { user = JSON.parse(sessionStorage.getItem('tl_admin_user') || 'null'); } catch {}
 
+  const clearAdminSession = (reason = '') => {
+    sessionStorage.removeItem('tl_admin_token');
+    sessionStorage.removeItem('tl_admin_user');
+    if (reason) sessionStorage.setItem('tl_admin_notice', reason);
+    V.admin();
+  };
+
+  // Safe client-side token expiration check
+  if (token) {
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          clearAdminSession('Your administrator session has expired. Please sign in again.');
+          return;
+        }
+      }
+    } catch {}
+  }
+
+  const sessionNotice = sessionStorage.getItem('tl_admin_notice');
+  if (sessionNotice) {
+    sessionStorage.removeItem('tl_admin_notice');
+  }
+
   if (!token || !user || user.role !== 'admin') {
     $("#app").innerHTML = `<h1>Administrator Sign In</h1>
 <div class="card" style="max-width:440px">
   <p class="mut">Restricted access for TrustLens security analysts and reviewers.</p>
-  <div id="alm" style="margin-bottom:12px"></div>
+  <div id="alm" style="margin-bottom:12px">${sessionNotice ? `<div class="pill warn" style="display:block;padding:8px 12px;margin-bottom:8px">ℹ ${esc(sessionNotice)}</div>` : ''}</div>
   <label style="display:block;margin:10px 0 4px;font-size:13px;font-weight:600">Admin Email</label>
   <input id="ae" type="email" placeholder="admin@trustlens.internal" style="width:100%" aria-label="Admin Email">
   <label style="display:block;margin:10px 0 4px;font-size:13px;font-weight:600">Password</label>
@@ -538,6 +564,17 @@ admin(){
     return;
   }
 
+  // Helper for authenticated admin requests with automatic 401 expiry detection
+  const adminFetch = async (url, options = {}) => {
+    const headers = Object.assign({ 'Authorization': 'Bearer ' + token }, options.headers || {});
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      clearAdminSession('Your administrator session has expired or is invalid. Please sign in again.');
+      throw new Error('SESSION_EXPIRED');
+    }
+    return res;
+  };
+
   // Authenticated Admin Console
   let activeTab = 'reports';
   const renderShell = () => {
@@ -554,9 +591,7 @@ admin(){
 <div id="admin-view"></div>`;
 
     if ($("#ao")) $("#ao").onclick = () => {
-      sessionStorage.removeItem('tl_admin_token');
-      sessionStorage.removeItem('tl_admin_user');
-      V.admin();
+      clearAdminSession('You have signed out successfully.');
     };
     if ($("#tab-rep")) $("#tab-rep").onclick = () => { activeTab = 'reports'; renderShell(); loadReportsView(); };
     if ($("#tab-aud")) $("#tab-aud").onclick = () => { activeTab = 'audit'; renderShell(); loadAuditView(); };
@@ -583,9 +618,7 @@ admin(){
     const contentDiv = $("#adm-reports-content");
     try {
       const q = filterStatus ? ('?status=' + encodeURIComponent(filterStatus)) : '';
-      const res = await fetch('/api/admin/reports' + q, {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
+      const res = await adminFetch('/api/admin/reports' + q);
       const json = await res.json().catch(() => null);
       if (!res.ok || !json || !json.ok) {
         contentDiv.innerHTML = `<div class="card bad">Failed to load reports: ${esc(json?.error?.message || 'Unauthorized')}</div>`;
@@ -618,11 +651,10 @@ admin(){
           const newStatus = b.dataset.act;
           b.disabled = true;
           try {
-            const pRes = await fetch('/api/admin/reports/' + repId, {
+            const pRes = await adminFetch('/api/admin/reports/' + repId, {
               method: 'PATCH',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
               },
               body: JSON.stringify({ status: newStatus }),
             });
@@ -634,13 +666,13 @@ admin(){
               b.disabled = false;
             }
           } catch (e) {
-            alert('Network error: ' + e.message);
+            if (e.message !== 'SESSION_EXPIRED') alert('Network error: ' + e.message);
             b.disabled = false;
           }
         };
       });
     } catch (e) {
-      contentDiv.innerHTML = `<div class="card bad">Network error loading reports: ${esc(e.message)}</div>`;
+      if (e.message !== 'SESSION_EXPIRED') contentDiv.innerHTML = `<div class="card bad">Network error loading reports: ${esc(e.message)}</div>`;
     }
   };
 
@@ -650,9 +682,7 @@ admin(){
     if (!view) return;
     view.innerHTML = '<div class="card"><p class="mut">Loading system audit trail…</p></div>';
     try {
-      const res = await fetch('/api/admin/audit?limit=25', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
+      const res = await adminFetch('/api/admin/audit?limit=25');
       const json = await res.json().catch(() => null);
       if (!res.ok || !json || !json.ok) {
         view.innerHTML = `<div class="card bad">Failed to load audit logs: ${esc(json?.error?.message || 'Unauthorized')}</div>`;
@@ -674,7 +704,7 @@ admin(){
         </tr>`).join('')}</tbody>
       </table></div>`;
     } catch (e) {
-      view.innerHTML = `<div class="card bad">Network error loading audit trail: ${esc(e.message)}</div>`;
+      if (e.message !== 'SESSION_EXPIRED') view.innerHTML = `<div class="card bad">Network error loading audit trail: ${esc(e.message)}</div>`;
     }
   };
 
@@ -684,9 +714,7 @@ admin(){
     if (!view) return;
     view.innerHTML = '<div class="card"><p class="mut">Loading threat feed statistics…</p></div>';
     try {
-      const res = await fetch('/api/admin/threat-intel/status', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
+      const res = await adminFetch('/api/admin/threat-intel/status');
       const json = await res.json().catch(() => null);
       if (!res.ok || !json || !json.ok) {
         view.innerHTML = `<div class="card bad">Failed to load feed status: ${esc(json?.error?.message || 'Unauthorized')}</div>`;
@@ -729,9 +757,8 @@ admin(){
           const msg = $("#sync-msg");
           if (msg) msg.innerHTML = '<p class="mut">Synchronizing external feeds (URLhaus & OpenPhish)…</p>';
           try {
-            const sRes = await fetch('/api/admin/threat-intel/sync', {
-              method: 'POST',
-              headers: { 'Authorization': 'Bearer ' + token }
+            const sRes = await adminFetch('/api/admin/threat-intel/sync', {
+              method: 'POST'
             });
             const sJson = await sRes.json().catch(() => null);
             if (sRes.ok && sJson && sJson.ok) {
@@ -742,13 +769,15 @@ admin(){
               syncBtn.disabled = false;
             }
           } catch (e) {
-            if (msg) msg.innerHTML = `<div class="card bad" style="padding:10px">Network error: ${esc(e.message)}</div>`;
-            syncBtn.disabled = false;
+            if (e.message !== 'SESSION_EXPIRED') {
+              if (msg) msg.innerHTML = `<div class="card bad" style="padding:10px">Network error: ${esc(e.message)}</div>`;
+              syncBtn.disabled = false;
+            }
           }
         };
       }
     } catch (e) {
-      view.innerHTML = `<div class="card bad">Network error loading feeds view: ${esc(e.message)}</div>`;
+      if (e.message !== 'SESSION_EXPIRED') view.innerHTML = `<div class="card bad">Network error loading feeds view: ${esc(e.message)}</div>`;
     }
   };
 

@@ -10,7 +10,7 @@
 ## 1. Conventions & Standards
 
 ### Standard Success Envelope:
-Every successful API response returns HTTP `200` (or `201` for creation) with a structured JSON body:
+Every successful API response returns HTTP `200` (or `201` for creation) with a structured JSON body. Every response also includes an `X-Request-Id` header for distributed tracing:
 ```json
 {
   "ok": true,
@@ -72,7 +72,7 @@ There are **14 functional endpoints registered and active** in the Express appli
 ### 2.1 System & Health
 
 #### `GET /api/health`
-- **Purpose:** Service health check and database connectivity reporting.
+- **Purpose:** Service liveness check and database connectivity reporting.
 - **Authentication:** None (Public).
 - **Database Dependency:** Non-blocking. Responds even when database is disconnected.
 - **Responses:**
@@ -100,12 +100,45 @@ There are **14 functional endpoints registered and active** in the Express appli
     }
     ```
 
+#### `GET /api/health/ready`
+- **Purpose:** Kubernetes / Docker container readiness probe to determine traffic routing eligibility.
+- **Authentication:** None (Public).
+- **Database Dependency:** Evaluates MongoDB connection readiness.
+- **Responses:**
+  - **HTTP 200 (Ready for Traffic):**
+    ```json
+    {
+      "ok": true,
+      "status": "ready",
+      "dependencies": {
+        "database": "connected"
+      },
+      "uptimeSec": 142
+    }
+    ```
+  - **HTTP 503 (Unready - Dependency Unavailable):**
+    ```json
+    {
+      "ok": false,
+      "status": "unready",
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "message": "Required database dependency is not ready."
+      },
+      "dependencies": {
+        "database": "unavailable"
+      }
+    }
+    ```
+
 ---
 
 ### 2.2 Authentication
 
-*Rate Limit: 30 requests per 15 minutes per IP.*  
-*Database Dependency: Requires active database (`requireDb`). Returns 503 if offline.*
+*Rate Limits:*
+- `POST /api/auth/login` and `POST /api/auth/register`: *15 requests per 15 minutes per IP (Brute-force protection).*
+- `POST /api/auth/guest`: *60 requests per 15 minutes per IP (Dedicated anonymous session issuance).*  
+*Database Dependency: Requires active database (`requireDb`) for `/register` and `/login`. `/guest` operates without DB dependency.*
 
 #### `POST /api/auth/register`
 - **Purpose:** Register a new user account with default role `user`.

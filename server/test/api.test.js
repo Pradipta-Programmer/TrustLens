@@ -14,6 +14,66 @@ test('GET / serves the frontend application', async () => {
   assert.ok(html.includes('Threat intelligence explorer'));
 });
 test('health reports DB unavailable honestly (no DB in test)', async () => { const [s, j] = await get('/api/health'); assert.equal(s, 503); assert.equal(j.data.database, 'unavailable'); });
+test('health/ready reports 503 when DB is unavailable', async () => {
+  const [s, j] = await get('/api/health/ready');
+  assert.equal(s, 503);
+  assert.equal(j.ok, false);
+  assert.equal(j.status, 'unready');
+  assert.equal(j.dependencies.database, 'unavailable');
+});
+test('trustProxy configuration parser handles booleans, hops, and cidrs', () => {
+  const { parseTrustProxy } = require('../src/config');
+  assert.equal(parseTrustProxy('false'), false);
+  assert.equal(parseTrustProxy('0'), false);
+  assert.equal(parseTrustProxy(undefined), false);
+  assert.equal(parseTrustProxy('true'), true);
+  assert.equal(parseTrustProxy('1'), 1);
+  assert.equal(parseTrustProxy('2'), 2);
+  assert.equal(parseTrustProxy('loopback'), 'loopback');
+  assert.equal(parseTrustProxy('10.0.0.0/8'), '10.0.0.0/8');
+});
+test('validateProductionConfig enforces strict security checks in production', () => {
+  const { validateProductionConfig } = require('../src/config');
+  // Non-production allows empty for tests
+  assert.equal(validateProductionConfig({ nodeEnv: 'test', jwtSecret: '', mongoUri: '', port: 4000 }).valid, true);
+
+  // Production missing JWT_SECRET fails
+  const missingSecret = validateProductionConfig({ nodeEnv: 'production', jwtSecret: 'short', mongoUri: 'mongodb://srv', port: 4000 });
+  assert.equal(missingSecret.valid, false);
+  assert.ok(missingSecret.errors.some(e => e.includes('JWT_SECRET')));
+
+  // Production missing MONGODB_URI fails
+  const missingMongo = validateProductionConfig({ nodeEnv: 'production', jwtSecret: '12345678901234567890123456789012', mongoUri: '', port: 4000 });
+  assert.equal(missingMongo.valid, false);
+  assert.ok(missingMongo.errors.some(e => e.includes('MONGODB_URI')));
+
+  // Valid production configuration passes
+  const validProd = validateProductionConfig({ nodeEnv: 'production', jwtSecret: '12345678901234567890123456789012', mongoUri: 'mongodb://srv', port: 4000 });
+  assert.equal(validProd.valid, true);
+});
+test('correlationId middleware generates X-Request-Id when missing and echoes valid incoming ID', async () => {
+  // Test generated ID
+  const res1 = await fetch(base + '/api/health');
+  const reqId1 = res1.headers.get('x-request-id');
+  assert.ok(reqId1, 'X-Request-Id header should be returned');
+  assert.match(reqId1, /^[0-9a-f-]{36}$/);
+
+  // Test preserving valid incoming ID
+  const customId = 'req-prod-test-998811';
+  const res2 = await fetch(base + '/api/health', {
+    headers: { 'x-request-id': customId },
+  });
+  assert.equal(res2.headers.get('x-request-id'), customId);
+
+  // Test invalid/malicious incoming ID replaced with secure UUID
+  const evilId = '<script>alert(1)</script>';
+  const res3 = await fetch(base + '/api/health', {
+    headers: { 'x-request-id': evilId },
+  });
+  const sanitizedId = res3.headers.get('x-request-id');
+  assert.notEqual(sanitizedId, evilId);
+  assert.match(sanitizedId, /^[0-9a-f-]{36}$/);
+});
 test('scans endpoint reports DB unavailable honestly (no DB in test)', async () => { const [s, j] = await get('/api/scans'); assert.equal(s, 503); assert.equal(j.error.code, 'DB_UNAVAILABLE'); });
 test('admin route rejects anonymous', async () => { const [s] = await get('/api/admin/reports'); assert.equal(s, 401); });
 test('admin route rejects forged token', async () => { const [s] = await get('/api/admin/reports', { headers: { authorization: 'Bearer abc.def.ghi' } }); assert.equal(s, 401); });

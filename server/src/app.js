@@ -1,9 +1,13 @@
 const path = require('path');
 const express = require('express'), helmet = require('helmet'), cors = require('cors');
 const config = require('./config');
-const { limiter, notFound, errorHandler } = require('./middleware');
+const { correlationId, limiter, notFound, errorHandler } = require('./middleware');
 const app = express();
 app.disable('x-powered-by');
+if (config.trustProxy) {
+  app.set('trust proxy', config.trustProxy);
+}
+app.use(correlationId);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {

@@ -99,6 +99,7 @@ async function assessWebsite(targetUrl, options = {}) {
 
   if (options.skipFetch) {
     fetchResult = options.fetchResult || null;
+    fetchError = options.fetchError || null;
   } else {
     try {
       fetchResult = await safeFetch(parsedUrl.href, {

@@ -1,8 +1,8 @@
 # TRUSTLENS – PROJECT_STATUS.md
 
 **Single Source of Truth**  
-**Last Updated:** 2026-11-09 (Priority 3.9 Certificate Transparency Intelligence Integration)  
-**Current Stage:** Priority 3.9 — Complete & Runtime-Verified; All 148 tests pass and exit naturally  
+**Last Updated:** 2026-11-09 (Priority 4.1–4.4 Production Readiness & Reliability Implementation)  
+**Current Stage:** Priority 4.1–4.4 — Complete & Runtime-Verified; All 165 tests pass and exit naturally  
 **Project Workspace:** `C:\Users\Pradipta\.gemini\antigravity\scratch\trustlens`  
 
 ---
@@ -268,17 +268,21 @@ Open `frontend/index.html` directly in any modern web browser (no compilation or
 
 ### Automated Test Suite (`npm test`):
 - Uses Node.js native test runner (`node:test`, `node:assert`).
-- **Total Passing Tests:** 88 passed, 0 failed, 0 skipped.
-- **Natural Termination:** Process terminates cleanly in ~3.8s without `--test-force-exit` or `process.exit()`.
+- **Total Passing Tests:** 165 passed, 0 failed, 0 skipped, 0 cancelled.
+- **Natural Termination:** Process terminates cleanly without `--test-force-exit` or `process.exit()`.
 - **Test File Breakdown:**
-  1. [`server/test/api.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/api.test.js) (9 tests): Root frontend static serving, health check honesty, DB degradation, route guards, URL syntax & SSRF blocking.
+  1. [`server/test/api.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/api.test.js) (13 tests): Root frontend static serving, health check honesty, readiness probe (`/api/health/ready`), trust proxy configuration, boot-time production validation, request correlation ID generation/sanitization, DB degradation, route guards, URL syntax & SSRF blocking.
   2. [`server/test/safeFetcher.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/safeFetcher.test.js) (16 tests): IP pinning, redirect validation, request timeouts, streaming limits, SNI/cert verification.
   3. [`server/test/modules.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/modules.test.js) (14 tests): Threat heuristics, headers, TLS inspection, community integration, normalization, correlation.
-  4. [`server/test/scans.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/scans.test.js) (13 tests): Full live scan lifecycle, domain upsert, history pagination, detail access control.
+  4. [`server/test/scans.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/scans.test.js) (14 tests): Full live scan lifecycle, domain upsert, parallelized CT/fetch execution, history pagination, detail access control.
   5. [`server/test/reports.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/reports.test.js) (26 tests): Guest token issuance, community report submission, duplicate 409 rejection via Atlas unique index, input validation, privacy checks, admin listing, public `GET /api/reports` search, category & status filtering, pagination, DB 503 error handling, and `/threats` alias.
   6. [`server/test/dashboard.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/dashboard.test.js) (7 tests): Public unauthenticated dashboard metrics, authenticated user scans count, guest token access, forged token rejection, privacy verification, and DB 503 error handling.
+  7. [`server/test/admin.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/admin.test.js) (17 tests): Admin authentication, report status transitions, VerifiedThreat syncing, AuditLog records, threatFeedService allowlist/sanitization, mock feed sync, and threat correlation.
+  8. [`server/test/certificates.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/certificates.test.js) (13 tests): Verified certificate retrieval, domain input normalization, expiry calculation, pagination, search query filtering, and privacy validation.
+  9. [`server/test/crtsh.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/crtsh.test.js) (28 tests): Domain validation, crt.sh parsing, timeout/oversize resilience, 12h cache hit/expiry, failed refresh preservation, heuristic analysis, threat correlation, and in-flight deduplication.
+  10. [`server/test/productionReadiness.test.js`](file:///C:/Users/Pradipta/.gemini/antigravity/scratch/trustlens/server/test/productionReadiness.test.js) (13 tests): Dedicated tests for Phase 4.1–4.4 features: readiness probe, correlation ID propagation, trust proxy parsing, production validation assertion, scheduled threat feed scheduler start/stop, database availability check, and auth rate limit decoupling.
 
-### Live Database Verification:
-- **MongoDB Atlas Verified:** Live connectivity, document insertion, and compound unique index `{ domainName: 1, category: 1, reporter: 1 }` runtime verified.
+### Live Database & Production Verification:
+- **MongoDB Atlas Verified:** Live connectivity, document insertion, compound index `{ requestedBy: 1, createdAt: -1 }` on `Scan` verified with `IXSCAN` query plan, and indexes on `CertificateRecord` (`{ domainName: 1, observedAt: -1 }`, `{ observedAt: 1 }`) verified with `IXSCAN`.
 - **SSRF Defense:** Verified at DNS, IP socket pinning, and redirect hops.
-- **Zero Frontend Automation:** Frontend tested via manual integration checks; no automated browser/headless E2E suite.
+- **Frontend Admin Expiry:** Verified token expiration checking and automatic 401 redirect to login.
