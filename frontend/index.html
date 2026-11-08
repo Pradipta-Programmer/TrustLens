@@ -783,7 +783,9 @@ admin(){
 
   renderShell();
   loadReportsView();
-},
+}
+};
+
 async function openScan(id){nav();$("#app").innerHTML=`<div class="card"><b>Loading scan ${esc(id)}…</b></div>`;try{const res=await fetch('/api/scans/'+id);const j=await res.json();if(res.ok&&j&&j.ok){last=j.data;V.scan();V.result(last)}else{$("#app").innerHTML=`<div class="card bad"><h3>Unable to open scan</h3><p>${esc(j?.error?.message||'Scan not found.')}</p><a href="#scan">Back to scanner</a></div>`}}catch(e){$("#app").innerHTML=`<div class="card bad"><h3>Network error</h3><p>${esc(e.message)}</p><a href="#scan">Back to scanner</a></div>`}}
 function route(){const k=location.hash.slice(1)||"scan";if(k.startsWith("scan-")){openScan(k.slice(5));return}nav();(V[k]||V.scan)()}
 addEventListener("hashchange",route);route();
