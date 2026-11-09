@@ -2,17 +2,23 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TRUSTLENS – Website Trust Intelligence</title>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet"><script>(function(){try{var t=localStorage.getItem('trustlens_theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)}catch(e){}})()</script>
 <style>
-:root{--bg:#f3f5f9;--card:#fff;--ink:#12203a;--mut:#5a6783;--line:#dde3ee;--navy:#0b1b3a;--blue:#2563eb;--ok:#15803d;--warn:#b45309;--bad:#c62828;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root,:root[data-theme=light]{--bg:#f3f5f9;--card:#fff;--ink:#12203a;--mut:#5a6783;--line:#dde3ee;--navy:#0b1b3a;--blue:#2563eb;--ok:#15803d;--warn:#b45309;--bad:#c62828;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0a1428;--card:#122042;--ink:#e8edf8;--mut:#9fb0d0;--line:#243459;--blue:#6ea0ff;--ok:#4ade80;--warn:#fbbf24;--bad:#ff7b72;color-scheme:dark}}
 :root[data-theme=dark]{--bg:#0a1428;--card:#122042;--ink:#e8edf8;--mut:#9fb0d0;--line:#243459;--blue:#6ea0ff;--ok:#4ade80;--warn:#fbbf24;--bad:#ff7b72;color-scheme:dark}
 *{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{max-width:100%;overflow-x:hidden}
 body{margin:0;font:15px/1.55 Manrope,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
-header{background:var(--navy);color:#fff;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;padding:12px 20px}
-header b{font-weight:800;font-size:18px;margin-right:auto}
-header a{color:#c5d3f5;text-decoration:none;padding:4px 2px;border-bottom:2px solid transparent}
-header a.on{color:#fff;border-color:#6ea0ff}
+header{background:var(--navy);color:#fff;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:12px 20px}
+header b{font-weight:800;font-size:18px;letter-spacing:-0.2px}
+#nav{display:flex;align-items:center;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;max-width:100%}
+#nav::-webkit-scrollbar{display:none}
+header a{color:#c5d3f5;text-decoration:none;display:inline-flex;align-items:center;min-height:44px;padding:8px 12px;border-bottom:3px solid transparent;font-weight:600;border-radius:6px 6px 0 0;white-space:nowrap;transition:color .15s,border-color .15s,background .15s}
+header a:hover{color:#fff;background:rgba(255,255,255,0.08)}
+header a.on{color:#ffffff;border-color:#6ea0ff;font-weight:800;background:rgba(110,160,255,0.12)}
+#theme-toggle{background:transparent;color:#c5d3f5;border:1px solid #4a5d85;border-radius:20px;padding:6px 14px;font-size:13px;display:inline-flex;align-items:center;gap:6px;min-height:36px;cursor:pointer;margin-left:auto;white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
+#theme-toggle:hover{color:#fff;background:rgba(255,255,255,0.1);border-color:#6ea0ff}
 main{max-width:980px;margin:0 auto;padding:20px 16px 60px}
 h1{font-size:clamp(26px,5vw,40px);line-height:1.1;margin:0 0 8px;font-weight:800}h2{font-size:20px;margin:26px 0 10px}h3{margin:0 0 6px;font-size:16px}
 .hero{background:var(--navy);color:#fff;border-radius:12px;padding:28px 22px}.hero p{color:#c5d3f5;margin:0 0 16px;max-width:60ch}
@@ -22,7 +28,7 @@ button{font:inherit;font-weight:600;padding:10px 16px;border:0;border-radius:8px
 button.alt{background:transparent;color:inherit;border:1px solid #6b7fa8}button.sm{padding:5px 10px;font-size:13px}
 :focus-visible{outline:3px solid #f59e0b;outline-offset:2px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
-.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))}
 .stat{font-size:30px;font-weight:800}.mut{color:var(--mut);font-size:13px}
 .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;border:1px solid currentColor}
 .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.na{color:var(--mut)}
@@ -32,8 +38,13 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;bord
 .scroll{overflow-x:auto}details{margin-top:8px}summary{cursor:pointer;color:var(--blue);font-weight:600}
 .demo{background:#fef3c7;color:#78350f;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700}
 ul{margin:6px 0;padding-left:20px}footer{text-align:center;color:var(--mut);padding:20px;font-size:13px}
+.clickable-row{cursor:pointer;transition:background .15s}.clickable-row:hover{background:rgba(37,99,235,0.06)}
+.pulse{display:inline-block;animation:pulse 1.2s infinite ease-in-out}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@media (min-width:960px){.dash-grid{grid-template-columns:repeat(5,1fr)}}
+@media (max-width:480px){.top{justify-content:center;text-align:center}}
+@media (max-width:640px){header{padding:10px 14px;gap:8px 12px}#theme-toggle{padding:4px 10px;min-height:36px;font-size:12px}main{padding:16px 12px 48px}.hero{padding:20px 16px}.row input{min-width:100%}}
 </style></head><body>
-<header><b>🔍 TRUSTLENS</b><nav id="nav" class="row" style="gap:16px"></nav></header>
+<header><b>🔍 TRUSTLENS</b><nav id="nav"></nav><button id="theme-toggle" class="alt sm" aria-label="Toggle theme" title="Toggle theme"></button></header>
 <main id="app"></main>
 <footer>TRUSTLENS prototype · scoring is heuristic and explainable, not a guarantee. Items marked <span class="demo">DEMO DATA</span> are simulated fixtures.</footer>
 <script>
@@ -86,7 +97,7 @@ function scan(x){const a=analyze(x),h=x.hostname,rep=repOf(h),m={threat:a.t,sec:
  const confL=conf>=70?"High":conf>=50?"Medium":"Low";
  const r={url:x.href,host:h,score,m,a,rep,conf,confL,time:new Date().toLocaleString()};
  (S.hist[h]=S.hist[h]||[]).push([today,score]);return r}
-const bar=(v,c)=>`<div class="bar" role="img" aria-label="${v} of 100"><i style="width:${v}%;background:var(--${c})"></i></div>`;
+const bar=(v,c)=>`<div class="bar" role="progressbar" aria-valuenow="${Math.round(v)}" aria-valuemin="0" aria-valuemax="100" aria-label="${Math.round(v)}%"><i style="width:${Math.max(0,Math.min(100,v))}%;background:var(--${c})"></i></div>`;
 const st=s=>`<span class="pill ${({Passed:"ok",Warning:"warn",Failed:"bad"})[s]||"na"}">${s}</span>`;
 function nav(){const p=[["scan","Scan"],["dashboard","Dashboard"],["explorer","Threat Explorer"],["report","Report a site"],["cert","Certificates"],["admin","Admin"]];const cur=location.hash.slice(1)||"scan";$("#nav").innerHTML=p.map(([k,l])=>`<a href="#${k}" class="${cur==k?"on":""}">${l}</a>`).join("")}
 let last=null;
@@ -97,25 +108,35 @@ scan(){$("#app").innerHTML=`<div class="hero"><h1>Don't just detect threats.<br>
 ${Object.keys(FX).map((k,i)=>`<button class="alt sm" data-d="${k}">${["Trusted","Suspicious","Reported malicious"][i]}</button>`).join("")}</div></div>
 <div id="res"></div>
 <div class="grid" style="margin-top:20px">${[["Threat intelligence","Phishing patterns, look-alike brands, known-bad matches."],["Website security","HTTPS, HSTS, CSP and other public headers."],["Certificate trust","Validity, expiry, name match, issuance logs."],["Community reputation","Reports from people, verified by reviewers."]].map(a=>`<div class="card"><h3>${a[0]}</h3><span class="mut">${a[1]}</span></div>`).join("")}</div>`;
- const run=async v=>{const x=parse(v);if(!x){$("#res").innerHTML=`<div class="card bad">Enter a valid http or https address, for example https://example.com. Local and private addresses are not scanned.</div>`;return}
-  $("#res").innerHTML=`<div class="card" id="prog"></div>`;const steps=["Threat intelligence","Website security","Certificate trust","Community reputation"];let i=0;
-  const tick=()=>{$("#prog").innerHTML="<b>Running live analysis…</b><ul>"+steps.map((s,j)=>`<li class="${j<i?"ok":"mut"}">${j<i?"✓":"…"} ${s}</li>`).join("")+"</ul>";if(i<4){i++;setTimeout(tick,350)}};tick();
-  try{
-    const res=await fetch('/api/scans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:v})});
-    const json=await res.json().catch(()=>null);
-    if(res.ok&&json&&json.ok){
-      last=json.data;
-      (S.hist[last.host]=S.hist[last.host]||[]).push([today,last.score]);
-      S.recentScans=S.recentScans||[];
-      S.recentScans.unshift({id:last.id,url:last.url,host:last.host,score:last.score,time:last.time,classification:last.classification});
-      V.result(last);
-    }else{
-      const err=json?.error?.message||`Scan request failed with HTTP ${res.status}.`;
-      $("#res").innerHTML=`<div class="card bad"><h3>Scan Failed</h3><p>${esc(err)}</p><span class="mut">Error code: ${esc(json?.error?.code||'SCAN_FAILED')}</span></div>`;
-    }
-  }catch(e){
-    last=scan(x);V.result(last);
-  }
+ const run=async v=>{
+   const goBtn=$("#go"),uInp=$("#u");
+   if(goBtn&&goBtn.disabled)return;
+   const x=parse(v);
+   if(!x){$("#res").innerHTML=`<div class="card bad">Enter a valid http or https address, for example https://example.com. Local and private addresses are not scanned.</div>`;return}
+   if(goBtn){goBtn.disabled=true;goBtn.dataset.orig=goBtn.textContent;goBtn.textContent="Scanning…"}
+   if(uInp)uInp.disabled=true;
+   $("#res").innerHTML=`<div class="card" id="prog"></div>`;const steps=["Threat intelligence","Website security","Certificate trust","Community reputation"];let i=0;
+   const tick=()=>{const el=$("#prog");if(!el)return;el.innerHTML="<b>Running live analysis…</b><ul>"+steps.map((s,j)=>`<li class="${j<i?"ok":"mut"}">${j<i?"✓":"…"} ${s}</li>`).join("")+"</ul>";if(i<4){i++;setTimeout(tick,350)}};tick();
+   try{
+     const res=await fetch('/api/scans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:v})});
+     const json=await res.json().catch(()=>null);
+     if(res.ok&&json&&json.ok){
+       last=json.data;
+       (S.hist[last.host]=S.hist[last.host]||[]).push([today,last.score]);
+       S.recentScans=S.recentScans||[];
+       S.recentScans.unshift({id:last.id,url:last.url,host:last.host,score:last.score,time:last.time,classification:last.classification});
+       V.result(last);
+     }else{
+       const err=json?.error?.message||`Scan request failed with HTTP ${res.status}.`;
+       $("#res").innerHTML=`<div class="card bad"><h3>Scan Failed</h3><p>${esc(err)}</p><span class="mut">Error code: ${esc(json?.error?.code||'SCAN_FAILED')}</span><div style="margin-top:10px"><button id="res-retry" class="sm alt">Retry scan</button></div></div>`;
+       if($("#res-retry"))$("#res-retry").onclick=()=>run(v);
+     }
+   }catch(e){
+     last=scan(x);V.result(last);
+   }finally{
+     if(goBtn){goBtn.disabled=false;goBtn.textContent=goBtn.dataset.orig||"Scan website"}
+     if(uInp)uInp.disabled=false;
+   }
  };
  $("#go").onclick=()=>run($("#u").value);$("#u").onkeydown=(e)=>{if(e.key==="Enter")run(e.target.value);};
  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{$("#u").value="https://"+b.dataset.d;run($("#u").value)})},
@@ -123,24 +144,26 @@ result(r){const[c,cc]=cls(r.score),a=r.a,names={threat:"Threat intelligence",sec
  const neg=a.f.map(x=>x[1]),pos=[...a.pos];if(a.fx){a.fx.sec.filter(s=>s[1]=="Passed").length>4&&pos.push("Most security headers are in place.");a.fx.cert.match&&a.fx.cert.chain&&a.fx.cert.days>0&&pos.push("Certificate is valid and matches the domain.");a.fx.sec.filter(s=>s[1]=="Failed").length>2&&neg.push("Several security settings are missing.");a.fx.cert.days<0&&neg.push("Certificate has expired.")}
  if(r.rep.ver)neg.push(r.rep.ver+" verified community report(s).");else if(!r.rep.n)pos.push("No community reports (this does not prove safety).");
  const recs=r.score>=50?["Do not enter passwords or payment details.","Close the page and report it using 'Report a site'.","Open the real organisation's site by typing its address yourself."]:r.score>=25?["Be careful with logins and payments.","Verify the site through an official source."]:["No major concerns found. Keep normal caution."];
- const h=S.hist[r.host]||[];const pts=h.map((p,i)=>`${i*(280/Math.max(1,h.length-1))+10},${110-p[1]}`).join(" ");
+ const h=S.hist[r.host]||[];
+ const pts=h.map((p,i)=>`${i*(280/Math.max(1,h.length-1))+10},${110-p[1]}`).join(" ");
+ const dots=h.map((p,i)=>{const cx=i*(280/Math.max(1,h.length-1))+10,cy=110-p[1];return `<circle cx="${cx}" cy="${cy}" r="4" fill="var(--blue)"><title>${esc(p[0])}: Score ${p[1]}/100</title></circle>`}).join("");
  $("#res").innerHTML=`<div class="card"><div class="top"><div><div class="score ${cc}">${r.score}</div><div class="mut">out of 100</div></div><div><h2 style="margin:0" class="${cc}">${c}</h2><div>Confidence: <b>${r.confL}</b> (${r.conf}%) · Coverage: <b>${r.coverage??100}%</b></div><div class="mut">${esc(r.url)} · ${r.time} ${r.id?`<span class="pill">ID: TL-${esc(String(r.id).slice(-6))}</span>`:""} ${a.fx?'<span class="demo">DEMO DATA</span>':""}</div></div></div></div>
 <div class="card"><h3>How each module contributed</h3>${Object.keys(names).map(k=>`<div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>${names[k]} <span class="mut">(weight ${WEIGHTS[k]*100}%)</span></span><b>${r.m[k]==null?"Not assessed":r.m[k]}</b></div>${r.m[k]==null?'<div class="mut">Needs the backend scanner; live header and certificate checks are not available in this browser demo.</div>':bar(r.m[k],r.m[k]<25?"ok":r.m[k]<50?"warn":"bad")}</div>`).join("")}</div>
 ${a.imp?`<div class="card" style="border-color:var(--bad)"><h3 class="bad">Possible impersonation detected</h3>Target organisation: <b>${esc(a.imp.n)}</b><br>Suspicious domain: <b>${esc(r.host)}</b><ul>${a.imp.ev.map(e=>"<li>"+e+"</li>").join("")}</ul><span class="mut">A similarity match, not confirmed fraud.</span></div>`:""}
-<div class="grid"><div class="card"><h3 class="ok">Positive findings</h3><ul>${pos.map(p=>"<li>"+esc(p)+"</li>").join("")||"<li>None</li>"}</ul></div><div class="card"><h3 class="bad">Negative findings</h3><ul>${neg.map(p=>"<li>"+esc(p)+"</li>").join("")||"<li>None</li>"}</ul></div></div>
+<div class="grid"><div class="card"><h3 class="ok">Positive findings</h3><ul>${pos.map(p=>"<li>✓ "+esc(p)+"</li>").join("")||"<li>None</li>"}</ul></div><div class="card"><h3 class="bad">Negative findings</h3><ul>${neg.map(p=>"<li>⚠ "+esc(p)+"</li>").join("")||"<li>None</li>"}</ul></div></div>
 ${a.fx?`<div class="card"><h3>Website security checks</h3><div class="scroll"><table><tr><th>Check</th><th>Status</th><th>Severity</th><th>Explanation</th></tr>${a.fx.sec.map(s=>`<tr><td>${s[0]}</td><td>${st(s[1])}</td><td>${s[2]}</td><td>${s[3]} ${s[4]?"<br><span class=mut>Fix: "+s[4]+"</span>":""}</td></tr>`).join("")}</table></div></div>`:""}
 <div class="card"><h3>Community reputation</h3>${r.rep.n?`${r.rep.n} report(s) from ${r.rep.uniq} unique reporter(s), ${r.rep.ver} verified.`:"No reports yet. Absence of reports is not proof of safety."}</div>
-<div class="card"><h3>Recommended actions</h3><ul>${(r.recommendations||recs).map(x=>"<li>"+x+"</li>").join("")}</ul><button id="cp" class="alt" style="color:var(--blue);border-color:var(--blue)">Copy report summary</button> <span id="cpm" class="mut"></span>
+<div class="card"><h3>Recommended actions</h3><ul>${(r.recommendations||recs).map(x=>"<li>👉 "+x+"</li>").join("")}</ul><button id="cp" class="alt" style="color:var(--blue);border-color:var(--blue)">Copy report summary</button> <span id="cpm" class="mut" style="margin-left:8px"></span>
 <details><summary>Technical details</summary><ul>${a.f.map(x=>`<li>+${x[0]} threat points: ${x[1]}</li>`).join("")||"<li>No URL indicators triggered.</li>"}</ul><span class="mut">ML classifier is not included in this prototype; scoring uses transparent URL heuristics.</span></details></div>
-<div class="card"><h3>Trust timeline</h3>${h.length>1?`<svg viewBox="0 0 300 120" style="width:100%;max-width:420px"><polyline fill="none" stroke="var(--blue)" stroke-width="3" points="${pts}"/></svg>`:'<span class="mut">First scan of this domain.</span>'}<ul>${h.slice().reverse().map(p=>`<li>${p[0]}: risk score ${p[1]}</li>`).join("")}</ul></div>`;
- $("#cp").onclick=async()=>{const t=`TRUSTLENS: ${r.host} – risk ${r.score}/100 (${c}), confidence ${r.confL}.`;try{await navigator.clipboard.writeText(t);$("#cpm").textContent="Copied."}catch(e){$("#cpm").textContent=t}}},
+<div class="card"><h3>Trust timeline</h3>${h.length>1?`<svg viewBox="0 0 300 120" style="width:100%;max-width:420px;overflow:visible"><polyline fill="none" stroke="var(--blue)" stroke-width="3" points="${pts}"/>${dots}</svg>`:'<span class="mut">First scan of this domain.</span>'}<ul>${h.slice().reverse().map(p=>`<li>${p[0]}: risk score <b>${p[1]}</b>/100</li>`).join("")}</ul></div>`;
+ $("#cp").onclick=async()=>{const t=`TRUSTLENS: ${r.host} – risk ${r.score}/100 (${c}), confidence ${r.confL}.`;try{await navigator.clipboard.writeText(t);$("#cpm").textContent="✓ Copied to clipboard.";setTimeout(()=>{if($("#cpm"))$("#cpm").textContent="";},2500)}catch(e){$("#cpm").textContent=t}}},
 dashboard(){
- $("#app").innerHTML=`<h1>Security dashboard</h1><p class="mut">Real-time aggregate trust intelligence and community reporting metrics from the live database.</p><div id="dash-content"><div class="card" style="text-align:center;padding:32px"><span class="mut">Loading live platform statistics…</span></div></div>`;
+ $("#app").innerHTML=`<h1>Security dashboard</h1><p class="mut">Real-time aggregate trust intelligence and community reporting metrics from the live database.</p><div id="dash-content"><div class="card" style="text-align:center;padding:32px"><span class="mut pulse">Loading live platform statistics…</span></div></div>`;
  const catLabel=k=>{const found=CATS.find(c=>c[1]==k);return found?found[0]:(k||"Other")};
  const loadStats=async()=>{
   const target=$("#dash-content");
   if(!target)return;
-  target.innerHTML='<div class="card" style="text-align:center;padding:32px"><span class="mut">Loading live platform statistics…</span></div>';
+  target.innerHTML='<div class="card" style="text-align:center;padding:32px"><span class="mut pulse">Loading live platform statistics…</span></div>';
   try{
    const headers={};
    const tok=sessionStorage.getItem('tl_guest_tok');
@@ -165,7 +188,7 @@ dashboard(){
    const recentReports=d.recentReports||[];
    const catEntries=Object.entries(cats);
    target.innerHTML=`
-<div class="grid">${[
+<div class="grid dash-grid">${[
   ["Websites scanned", scansCount, "Total live domain assessments"],
   ["High-risk scans", hiCount, "Scans with risk score &ge; 50"],
   ["Critical scans", crCount, "Scans with risk score &ge; 75"],
@@ -193,7 +216,7 @@ ${catEntries.map(([k,v])=>`<div style="margin:8px 0"><div class="row" style="jus
 <div class="grid" style="margin-top:8px">
 <div class="card"><h3>Recent Live Scans</h3>
 ${recentScans.length===0?'<span class="mut">No recent scans on record. <a href="#scan" style="color:var(--blue)">Scan a website</a> to begin.</span>':`
-${recentScans.map(s=>`<div style="margin:6px 0;padding-bottom:6px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
+${recentScans.map(s=>`<div class="clickable-row" onclick="location.hash='#scan-${esc(s.id||'')}'" style="margin:6px 0;padding:8px;border-radius:6px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center" title="View saved scan assessment for ${esc(s.domainName||s.domain||'')}">
 <div><b>${esc(s.domainName||s.domain||'')}</b><br><span class="mut" style="font-size:12px">${s.createdAt?new Date(s.createdAt).toLocaleDateString():''}</span></div>
 <div><span class="pill ${s.riskScore>=50?'bad':s.riskScore>=25?'warn':'ok'}">${s.classification||(s.riskScore+'/100')}</span></div>
 </div>`).join("")}
@@ -202,7 +225,7 @@ ${recentScans.map(s=>`<div style="margin:6px 0;padding-bottom:6px;border-bottom:
 
 <div class="card"><h3>Recent Community Reports</h3>
 ${recentReports.length===0?'<span class="mut">No recent community reports on record.</span>':`
-${recentReports.map(r=>`<div style="margin:6px 0;padding-bottom:6px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
+${recentReports.map(r=>`<div class="clickable-row" onclick="sessionStorage.setItem('tl_exp_filter','${esc(r.domainName||r.domain||'')}');location.hash='#explorer'" style="margin:6px 0;padding:8px;border-radius:6px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center" title="View in Threat Explorer">
 <div><b>${esc(r.domainName||r.domain||'')}</b><br><span class="mut" style="font-size:12px">${esc(catLabel(r.category))} · ${r.createdAt?new Date(r.createdAt).toLocaleDateString():''}</span></div>
 <div><span class="pill ${r.status==='verified'?'bad':r.status==='under_verification'?'warn':r.status==='rejected'?'ok':'na'}">${(r.status||'').replace(/_/g,' ')}</span></div>
 </div>`).join("")}
@@ -219,13 +242,16 @@ ${recentReports.map(r=>`<div style="margin:6px 0;padding-bottom:6px;border-botto
 },
 explorer(){
  let curPage=1,searchTimer=null;
+ const preFilter=sessionStorage.getItem('tl_exp_filter')||'';
+ if(preFilter)sessionStorage.removeItem('tl_exp_filter');
  $("#app").innerHTML=`<h1>Threat intelligence explorer</h1>
 <p class="mut">Explore crowdsourced security reports submitted by the community. Reports in <b>Pending Review</b> or <b>Under Verification</b> are unconfirmed submissions and are not verified malicious verdicts.</p>
 <div class="row" style="margin-bottom:12px">
-<input id="q" placeholder="Search domain (e.g. example.com)" aria-label="Search domain" style="flex:2;min-width:200px">
+<input id="q" placeholder="Search domain (e.g. example.com)" aria-label="Search domain" value="${esc(preFilter)}" style="flex:2;min-width:200px">
 <select id="fc" aria-label="Category" style="flex:1;min-width:160px"><option value="">All categories</option>${CATS.map(c=>`<option value="${c[1]}">${c[0]}</option>`).join("")}</select>
 <select id="fs" aria-label="Status" style="flex:1;min-width:160px"><option value="">All statuses</option><option value="verified">Verified Malicious</option><option value="under_verification">Under Verification</option><option value="pending_review">Pending Review</option><option value="rejected">Rejected (False Positive)</option></select>
-<button id="fgo" class="sm">Search</button></div>
+<button id="fgo" class="sm">Search</button>
+<button id="fcl" class="sm alt">Clear</button></div>
 <div id="exp-status" style="margin-bottom:8px"></div>
 <div class="card scroll" style="padding:0"><table id="tb" style="margin:0">
 <thead><tr><th>Domain</th><th>Category</th><th>Verification Status</th><th>Assessment</th><th>Submitted</th><th>Action</th></tr></thead>
@@ -245,8 +271,9 @@ explorer(){
   const q=($("#q")?$("#q").value:"").trim(),cat=$("#fc")?$("#fc").value:"",st=$("#fs")?$("#fs").value:"";
   const tb=$("#tb-body"),pag=$("#exp-pag"),stat=$("#exp-status");
   if(!tb)return;
-  tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px"><span class="mut">Loading community reports…</span></td></tr>';
-  if(pag)pag.innerHTML='';if(stat)stat.innerHTML='';
+  if(stat)stat.innerHTML='<span class="mut pulse">Searching intelligence reports…</span>';
+  tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px"><span class="mut pulse">Loading community reports…</span></td></tr>';
+  if(pag)pag.innerHTML='';
   const params=new URLSearchParams();
   if(q)params.set("q",q);if(cat)params.set("category",cat);if(st)params.set("status",st);
   params.set("page",String(page));params.set("limit","15");
@@ -257,6 +284,7 @@ explorer(){
     const msg=(json&&json.error&&json.error.message)?json.error.message:("HTTP "+res.status);
     tb.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px" class="bad">Unable to load threat reports: ${esc(msg)}<br><button id="retry-btn" class="sm alt" style="margin-top:8px">Retry</button></td></tr>`;
     if($("#retry-btn"))$("#retry-btn").onclick=()=>loadReports(curPage);
+    if(stat)stat.innerHTML='';
     return;
    }
    const d=json.data,reports=d.reports||[],p=d.pagination||{page:1,totalPages:1,total:0};
@@ -284,18 +312,24 @@ explorer(){
   }catch(err){
    tb.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px" class="bad">Network connection error: ${esc(err.message)}<br><button id="retry-btn" class="sm alt" style="margin-top:8px">Retry</button></td></tr>`;
    if($("#retry-btn"))$("#retry-btn").onclick=()=>loadReports(curPage);
+   if(stat)stat.innerHTML='';
   }
  };
  const deb=()=>{if(searchTimer)clearTimeout(searchTimer);searchTimer=setTimeout(()=>loadReports(1),350)};
  $("#q").oninput=deb;$("#fc").onchange=()=>loadReports(1);$("#fs").onchange=()=>loadReports(1);$("#fgo").onclick=()=>loadReports(1);
+ $("#fcl").onclick=()=>{if($("#q"))$("#q").value="";if($("#fc"))$("#fc").value="";if($("#fs"))$("#fs").value="";loadReports(1)};
  loadReports(1);
 },
-report(){$("#app").innerHTML=`<h1>Report a suspicious website</h1><p class="mut">Reporter identities are never shown publicly. One report does not mark a site malicious; reviewers verify first.</p><div class="card"><label>Website URL<br><input id="ru" style="width:100%"></label><br><br><label>Category<br><select id="rc">${CATS.map(c=>`<option value="${c[1]}">${c[0]}</option>`).join("")}</select></label><br><br><label>What happened?<br><textarea id="rd" rows="3" maxlength="500"></textarea></label><br><br><button id="rs">Submit report</button><div id="rm" style="margin-top:12px"></div></div>`;
+report(){$("#app").innerHTML=`<h1>Report a suspicious website</h1><p class="mut">Reporter identities are never shown publicly. One report does not mark a site malicious; reviewers verify first.</p><div class="card"><label>Website URL<br><input id="ru" placeholder="https://example.com" style="width:100%"></label><br><br><label>Category<br><select id="rc">${CATS.map(c=>`<option value="${c[1]}">${c[0]}</option>`).join("")}</select></label><br><br><label>What happened?<br><textarea id="rd" rows="3" maxlength="500" placeholder="Briefly describe what made this website look suspicious..."></textarea></label><br><br><button id="rs">Submit report</button><div id="rm" style="margin-top:12px"></div></div>`;
+ const ruInp=$("#ru");
+ if(ruInp){ruInp.onblur=()=>{ruInp.value=ruInp.value.trim()};ruInp.onpaste=()=>setTimeout(()=>{ruInp.value=ruInp.value.trim()},10)}
  $("#rs").onclick=async()=>{
-  const x=parse($("#ru").value);
-  if(!x)return $("#rm").innerHTML='<span class="bad">Enter a valid http or https website address.</span>';
+  const btn=$("#rs");if(btn&&btn.disabled)return;
+  const rawUrl=$("#ru").value.trim();
+  const x=parse(rawUrl);
+  if(!x)return $("#rm").innerHTML='<div class="pill bad" style="padding:6px 12px">Please enter a valid website address starting with http:// or https:// (e.g. https://example.com).</div>';
   const catEntry=CATS[$("#rc").selectedIndex],catLabel=catEntry[0],catKey=catEntry[1];
-  $("#rs").disabled=true;$("#rm").innerHTML='<span class="mut">Submitting…</span>';
+  if(btn){btn.disabled=true;btn.textContent="Submitting report…";} $("#rm").innerHTML='<span class="mut pulse">Submitting report to reviewers…</span>';
   try{
     let tok=sessionStorage.getItem('tl_guest_tok');
     if(!tok){
@@ -311,15 +345,16 @@ report(){$("#app").innerHTML=`<h1>Report a suspicious website</h1><p class="mut"
     });
     const json=await res.json().catch(()=>null);
     if(res.status===409&&json&&json.error&&json.error.code==='DUPLICATE_REPORT'){
-      $("#rm").innerHTML='<span class="warn">You already submitted a report for this domain in this category.</span>';
+      $("#rm").innerHTML='<div class="pill warn" style="padding:8px 12px">⚠ You already submitted a report for this domain in this category.</div>';
     }else if(res.ok&&json&&json.ok){
       const d=json.data,tid='TL-'+String(d.id).slice(-6);
       const domKey=x.hostname.toLowerCase();
       if(!S.reports.find(r=>r.domain==domKey&&r.cat==catKey)){
         S.reports.push({id:d.id,domain:domKey,cat:catKey,desc:$("#rd").value.trim().slice(0,500),status:d.status.replace(/_/g,' '),users:[me],first:today,last:today});
       }
-      $("#rm").innerHTML='<div class="card" style="border-color:var(--ok);padding:12px"><b class="ok">✓ Report submitted.</b><br>Tracking ID: <b>'+esc(tid)+'</b> · Status: <b>'+esc(d.status.replace(/_/g,' '))+'</b><br><span class="mut">Reviewers examine every report before any domain is marked malicious. One report alone is not a verdict.</span></div>';
+      $("#rm").innerHTML='<div class="card" style="border-color:var(--ok);padding:14px"><b class="ok">✓ Community report submitted successfully!</b><br><span style="font-size:13px">Tracking ID: <b>'+esc(tid)+'</b> · Status: <b>'+esc(d.status.replace(/_/g,' '))+'</b></span><br><span class="mut" style="font-size:12px">TrustLens reviewers examine every report before any domain verdict is escalated.</span><div style="margin-top:10px"><button id="rep-reset" class="sm alt">Submit another report</button></div></div>';
       $("#ru").value='';$("#rd").value='';
+      if($("#rep-reset"))$("#rep-reset").onclick=()=>{$("#rm").innerHTML='';};
     }else{
       throw new Error(json&&json.error&&json.error.message?json.error.message:'Submission failed (HTTP '+res.status+').');
     }
@@ -333,9 +368,9 @@ report(){$("#app").innerHTML=`<h1>Report a suspicious website</h1><p class="mut"
         ?'<span class="warn">You already reported this site for this category (session only).</span>'
         :'<span class="ok">Report saved locally.</span> <span class="demo">DEMO DATA</span> Tracking ID <b>TL-'+String(r.id).slice(-5)+'</b><br><span class="mut">Backend is offline — this report is not persisted.</span>';
     }else{
-      $("#rm").innerHTML='<span class="bad">Submission failed: '+esc(e.message)+'</span>';
+      $("#rm").innerHTML='<div class="pill bad" style="padding:6px 12px">Submission failed: '+esc(e.message)+'</div>';
     }
-  }finally{$("#rs").disabled=false;}
+  }finally{if(btn){btn.disabled=false;btn.textContent="Submit report";}}
   };
  },
 cert(){
@@ -344,6 +379,7 @@ cert(){
   <input id="cd" placeholder="Enter domain (e.g. example.com)" aria-label="Domain" style="flex:2;min-width:220px">
   <button id="cs">Check certificate</button>
 </div>
+<div class="row" style="margin-top:8px"><span class="mut" style="font-size:12px;align-self:center">Try an example:</span><button class="alt sm cert-demo" data-cert="example.com">example.com</button><button class="alt sm cert-demo" data-cert="google.com">google.com</button></div>
 <div id="cr" style="margin-top:14px"></div>
 <p class="mut" style="margin-top:16px">Certificate Transparency and TLS certificates verify encryption in transit and domain identity at issuance. They do <b>not</b> guarantee that a website's intent is benign or free from fraud.</p>`;
 
@@ -359,7 +395,7 @@ cert(){
       return;
     }
 
-    cr.innerHTML = `<div class="card"><p class="mut">Querying certificate intelligence for <b>${esc(d)}</b>…</p></div>`;
+    cr.innerHTML = `<div class="card"><p class="mut pulse">Querying certificate intelligence for <b>${esc(d)}</b>…</p></div>`;
 
     try {
       const res = await fetch('/api/certificates/' + encodeURIComponent(d));
@@ -371,7 +407,7 @@ cert(){
           <p class="mut">No live certificate record exists for <b>${esc(d)}</b> in TrustLens intelligence yet.</p>
           <p>TrustLens inspects TLS peer certificates and chain validity during website scans.</p>
           <div style="margin-top:14px">
-            <a href="#scan" style="display:inline-block;padding:8px 14px;background:var(--blue);color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Scan ${esc(d)} now</a>
+            <a href="#scan" onclick="location.hash='#scan';setTimeout(()=>{const inp=$('#u');if(inp){inp.value='https://${esc(d)}';$('#go')?.click()}},80)" style="display:inline-block;padding:8px 14px;background:var(--blue);color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Scan ${esc(d)} now</a>
           </div>
         </div>`;
         return;
@@ -436,9 +472,16 @@ cert(){
                   const totalStr = typeof ct.totalLogged === 'number' ? (ct.totalLogged + ' certificate(s) logged') : '0 logged';
                   const earliestStr = ct.earliest ? new Date(ct.earliest).toLocaleDateString() : 'N/A';
                   const latestStr = ct.latest ? new Date(ct.latest).toLocaleDateString() : 'N/A';
-                  const sansStr = Array.isArray(ct.discoveredSANs) && ct.discoveredSANs.length > 0
-                    ? esc(ct.discoveredSANs.slice(0, 10).join(', ')) + (ct.discoveredSANs.length > 10 ? ' …' : '')
-                    : '<span class="mut">None listed</span>';
+                  const sansList = Array.isArray(ct.discoveredSANs) ? ct.discoveredSANs : [];
+                  let sansStr = '<span class="mut">None listed</span>';
+                  if (sansList.length > 0) {
+                    const first10 = sansList.slice(0, 10).map(esc).join(', ');
+                    if (sansList.length > 10) {
+                      sansStr = `${first10} <details style="margin-top:6px;display:inline-block"><summary style="font-size:12px;color:var(--blue);cursor:pointer">View all ${sansList.length} discovered names</summary><div style="max-height:160px;overflow-y:auto;background:var(--bg);padding:8px;border-radius:6px;font-size:12px;margin-top:4px">${sansList.map(esc).join('<br>')}</div></details>`;
+                    } else {
+                      sansStr = first10;
+                    }
+                  }
 
                   rows += '<tr><td><b>Total Certificates Logged</b></td><td>' + esc(totalStr) + '</td></tr>' +
                           '<tr><td><b>First Logged In CT</b></td><td>' + esc(earliestStr) + '</td></tr>' +
@@ -458,7 +501,7 @@ cert(){
             <tr><td><b>Last Verified</b></td><td><span class="mut">${c.observedAt ? new Date(c.observedAt).toLocaleString() : 'Recent'}</span></td></tr>
           </table>
           <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-            <a href="#scan" style="color:var(--blue);text-decoration:none;font-weight:600;font-size:13px">Run full security scan on this domain →</a>
+            <a href="#scan" onclick="location.hash='#scan';setTimeout(()=>{const inp=$('#u');if(inp){inp.value='https://${esc(c.domain || d)}';$('#go')?.click()}},80)" style="color:var(--blue);text-decoration:none;font-weight:600;font-size:13px">Run full security scan on this domain →</a>
             <span class="mut" style="font-size:12px">Mode: ${esc(c.mode || json.meta?.mode || 'live')}</span>
           </div>
         </div>`;
@@ -474,6 +517,9 @@ cert(){
 
   $("#cs").onclick = () => doCheck();
   $("#cd").onkeydown = (e) => { if (e.key === 'Enter') doCheck(); };
+  document.querySelectorAll(".cert-demo").forEach(b => {
+    b.onclick = () => { if ($("#cd")) $("#cd").value = b.dataset.cert; doCheck(b.dataset.cert); };
+  });
 },
 admin(){
   let token = sessionStorage.getItem('tl_admin_token');
@@ -530,7 +576,7 @@ admin(){
         return;
       }
       if (btn) btn.disabled = true;
-      if (alm) alm.innerHTML = '<span class="mut">Authenticating credentials…</span>';
+      if (alm) alm.innerHTML = '<span class="mut pulse">Authenticating credentials…</span>';
       try {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
@@ -575,6 +621,18 @@ admin(){
     return res;
   };
 
+  // Helper to format audit log details into readable tags
+  const fmtAuditDetail = d => {
+    if (!d || typeof d !== 'object') return '—';
+    if (d.previousStatus && d.newStatus) {
+      return `<span class="pill na">${esc(d.previousStatus)}</span> &rarr; <span class="pill ${d.newStatus==='verified'?'bad':d.newStatus==='rejected'?'ok':'warn'}">${esc(d.newStatus)}</span>`;
+    }
+    if (d.totalIngested !== undefined) {
+      return `Ingested: <b>${esc(d.totalIngested)}</b> indicators`;
+    }
+    try { return esc(JSON.stringify(d)); } catch { return '—'; }
+  };
+
   // Authenticated Admin Console
   let activeTab = 'reports';
   const renderShell = () => {
@@ -609,7 +667,7 @@ admin(){
       <button class="sm ${filterStatus === 'verified' ? '' : 'alt'}" data-st="verified">Verified Malicious</button>
       <button class="sm ${filterStatus === 'rejected' ? '' : 'alt'}" data-st="rejected">Rejected</button>
     </div>
-    <div id="adm-reports-content"><p class="mut">Loading community reports…</p></div>`;
+    <div id="adm-reports-content"><p class="mut pulse">Loading community reports…</p></div>`;
 
     view.querySelectorAll('[data-st]').forEach(b => {
       b.onclick = () => loadReportsView(b.dataset.st);
@@ -638,18 +696,20 @@ admin(){
           <td><span class="pill ${r.status === 'verified' ? 'bad' : r.status === 'under_verification' ? 'warn' : r.status === 'rejected' ? 'ok' : 'na'}">${(r.status || '').replace(/_/g, ' ')}</span></td>
           <td class="mut" style="font-size:12px">${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
           <td style="white-space:nowrap">
-            ${r.status !== 'under_verification' ? `<button class="sm alt" data-act="under_verification" data-id="${r.id}" style="color:var(--warn);border-color:var(--warn);margin-right:4px">Investigate</button>` : ''}
-            ${r.status !== 'verified' ? `<button class="sm alt" data-act="verified" data-id="${r.id}" style="color:var(--bad);border-color:var(--bad);margin-right:4px">Verify</button>` : ''}
-            ${r.status !== 'rejected' ? `<button class="sm alt" data-act="rejected" data-id="${r.id}" style="color:var(--ok);border-color:var(--ok)">Reject</button>` : ''}
+            ${r.status !== 'under_verification' ? `<button class="sm alt mod-btn" data-act="under_verification" data-id="${r.id}" style="color:var(--warn);border-color:var(--warn);margin-right:4px">Investigate</button>` : ''}
+            ${r.status !== 'verified' ? `<button class="sm alt mod-btn" data-act="verified" data-id="${r.id}" style="color:var(--bad);border-color:var(--bad);margin-right:4px">Verify</button>` : ''}
+            ${r.status !== 'rejected' ? `<button class="sm alt mod-btn" data-act="rejected" data-id="${r.id}" style="color:var(--ok);border-color:var(--ok)">Reject</button>` : ''}
           </td>
         </tr>`).join('')}</tbody>
       </table></div>`;
 
-      contentDiv.querySelectorAll('[data-act]').forEach(b => {
+      contentDiv.querySelectorAll('.mod-btn').forEach(b => {
         b.onclick = async () => {
           const repId = b.dataset.id;
           const newStatus = b.dataset.act;
+          const origText = b.textContent;
           b.disabled = true;
+          b.textContent = "Updating…";
           try {
             const pRes = await adminFetch('/api/admin/reports/' + repId, {
               method: 'PATCH',
@@ -664,10 +724,12 @@ admin(){
             } else {
               alert('Update failed: ' + (pJson?.error?.message || 'Server error'));
               b.disabled = false;
+              b.textContent = origText;
             }
           } catch (e) {
             if (e.message !== 'SESSION_EXPIRED') alert('Network error: ' + e.message);
             b.disabled = false;
+            b.textContent = origText;
           }
         };
       });
@@ -680,7 +742,7 @@ admin(){
   const loadAuditView = async () => {
     const view = $("#admin-view");
     if (!view) return;
-    view.innerHTML = '<div class="card"><p class="mut">Loading system audit trail…</p></div>';
+    view.innerHTML = '<div class="card"><p class="mut pulse">Loading system audit trail…</p></div>';
     try {
       const res = await adminFetch('/api/admin/audit?limit=25');
       const json = await res.json().catch(() => null);
@@ -700,7 +762,7 @@ admin(){
           <td><b>${esc(l.actor ? l.actor.name : 'System')}</b><br><span class="mut" style="font-size:11px">${esc(l.actor ? l.actor.role : '')}</span></td>
           <td><span class="pill ${l.action.includes('verified') ? 'bad' : 'warn'}">${esc(l.action)}</span></td>
           <td style="font-size:12px"><code>${esc(l.targetType || '—')} ${esc(l.targetId || '')}</code></td>
-          <td><span class="mut" style="font-size:12px">${esc(l.detail ? JSON.stringify(l.detail) : '—')}</span></td>
+          <td><span style="font-size:12px">${fmtAuditDetail(l.detail)}</span></td>
         </tr>`).join('')}</tbody>
       </table></div>`;
     } catch (e) {
@@ -712,7 +774,7 @@ admin(){
   const loadFeedsView = async () => {
     const view = $("#admin-view");
     if (!view) return;
-    view.innerHTML = '<div class="card"><p class="mut">Loading threat feed statistics…</p></div>';
+    view.innerHTML = '<div class="card"><p class="mut pulse">Loading threat feed statistics…</p></div>';
     try {
       const res = await adminFetch('/api/admin/threat-intel/status');
       const json = await res.json().catch(() => null);
@@ -754,8 +816,9 @@ admin(){
       if (syncBtn) {
         syncBtn.onclick = async () => {
           syncBtn.disabled = true;
+          syncBtn.textContent = "Syncing threat feeds…";
           const msg = $("#sync-msg");
-          if (msg) msg.innerHTML = '<p class="mut">Synchronizing external feeds (URLhaus & OpenPhish)…</p>';
+          if (msg) msg.innerHTML = '<p class="mut pulse">Synchronizing external feeds (URLhaus & OpenPhish)…</p>';
           try {
             const sRes = await adminFetch('/api/admin/threat-intel/sync', {
               method: 'POST'
@@ -767,11 +830,13 @@ admin(){
             } else {
               if (msg) msg.innerHTML = `<div class="card bad" style="padding:10px">Sync failed: ${esc(sJson?.error?.message || 'Server error')}</div>`;
               syncBtn.disabled = false;
+              syncBtn.textContent = "Sync Threat Feeds Now";
             }
           } catch (e) {
             if (e.message !== 'SESSION_EXPIRED') {
               if (msg) msg.innerHTML = `<div class="card bad" style="padding:10px">Network error: ${esc(e.message)}</div>`;
               syncBtn.disabled = false;
+              syncBtn.textContent = "Sync Threat Feeds Now";
             }
           }
         };
@@ -788,5 +853,6 @@ admin(){
 
 async function openScan(id){nav();$("#app").innerHTML=`<div class="card"><b>Loading scan ${esc(id)}…</b></div>`;try{const res=await fetch('/api/scans/'+id);const j=await res.json();if(res.ok&&j&&j.ok){last=j.data;V.scan();V.result(last)}else{$("#app").innerHTML=`<div class="card bad"><h3>Unable to open scan</h3><p>${esc(j?.error?.message||'Scan not found.')}</p><a href="#scan">Back to scanner</a></div>`}}catch(e){$("#app").innerHTML=`<div class="card bad"><h3>Network error</h3><p>${esc(e.message)}</p><a href="#scan">Back to scanner</a></div>`}}
 function route(){const k=location.hash.slice(1)||"scan";if(k.startsWith("scan-")){openScan(k.slice(5));return}nav();(V[k]||V.scan)()}
-addEventListener("hashchange",route);route();
+function initTheme(){const btn=$("#theme-toggle");const getEff=()=>{const attr=document.documentElement.getAttribute("data-theme");if(attr==="dark"||attr==="light")return attr;return(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"};const syncBtn=()=>{if(!btn)return;const eff=getEff();btn.innerHTML=eff==="dark"?'<span aria-hidden="true">☀️</span> Light':'<span aria-hidden="true">🌙</span> Dark';btn.setAttribute("aria-label",eff==="dark"?"Switch to Light theme":"Switch to Dark theme")};if(btn){btn.onclick=()=>{const eff=getEff();const nxt=eff==="dark"?"light":"dark";try{localStorage.setItem("trustlens_theme",nxt)}catch(e){}document.documentElement.setAttribute("data-theme",nxt);syncBtn()}}if(window.matchMedia){try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{try{if(!localStorage.getItem("trustlens_theme"))syncBtn()}catch(e){}})}catch(e){}}syncBtn()}
+initTheme();addEventListener("hashchange",route);route();
 </script></body></html>

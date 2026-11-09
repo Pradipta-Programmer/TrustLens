@@ -16,7 +16,7 @@ const VerifiedThreat = require('../src/models/VerifiedThreat');
 const ThreatIntel = require('../src/models/ThreatIntel');
 const threatModule = require('../src/modules/threat');
 const threatFeedService = require('../src/services/threatFeedService');
-const { connectDb, dbReady, closeDb } = require('../src/config/db');
+const { connectDb, dbReady, closeDb, assertTestDatabase } = require('../src/config/db');
 
 test('Admin & Threat Intelligence Integration Suite', async (t) => {
   let srv;
@@ -30,10 +30,11 @@ test('Admin & Threat Intelligence Integration Suite', async (t) => {
     });
   });
 
-  // Connect to MongoDB Atlas
+  // Connect to MongoDB Atlas (must target trustlens_test)
   const connected = await connectDb();
   assert.ok(connected, 'MongoDB Atlas should connect');
   assert.ok(dbReady(), 'Database should be marked ready');
+  assertTestDatabase();
 
   // Request helpers
   const request = async (path, method = 'GET', body = null, headers = {}) => {

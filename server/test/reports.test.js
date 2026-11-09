@@ -13,7 +13,7 @@ const jwt = require('jsonwebtoken');
 
 const app = require('../src/app');
 const config = require('../src/config');
-const { connectDb, dbReady, closeDb } = require('../src/config/db');
+const { connectDb, dbReady, closeDb, assertTestDatabase } = require('../src/config/db');
 const Report = require('../src/models/CommunityReport');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -35,10 +35,11 @@ test('Reports API Integration Suite', async (t) => {
     });
   });
 
-  // Connect to MongoDB Atlas
+  // Connect to MongoDB Atlas (must target trustlens_test)
   const connected = await connectDb();
   assert.ok(connected, 'MongoDB Atlas should connect for integration testing');
   assert.ok(dbReady(), 'Database should be marked ready');
+  assertTestDatabase();
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const req = async (method, path, body, headers = {}) => {
