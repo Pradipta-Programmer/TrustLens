@@ -5,6 +5,7 @@
 
 const http = require('http');
 const https = require('https');
+const crypto = require('crypto');
 const dns = require('dns').promises;
 const net = require('net');
 const { LIMITS, isBlockedIp, validateUrlSyntax, resolveAndValidate } = require('./urlGuard');
@@ -276,12 +277,16 @@ function executeHop({ url, pinnedIp, method, timeoutMs, maxBodyBytes, headers, u
       if (!isIpHost) {
         reqOptions.servername = url.hostname; // TLS SNI
       }
+      // Per-hop dedicated agent: maxCachedSessions:0 prevents session-ID reuse;
+      // unique ticketKeys prevents TLS 1.3 session-ticket resumption.
+      // Both are needed to guarantee a full TLS handshake and a non-empty getPeerCertificate().
       reqOptions.agent = new https.Agent({
         ca,
         rejectUnauthorized,
         servername: !isIpHost ? url.hostname : undefined,
         maxCachedSessions: 0,
         keepAlive: false,
+        ticketKeys: crypto.randomBytes(48),
       });
     }
 
