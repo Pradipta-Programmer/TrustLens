@@ -141,6 +141,30 @@ function normalizeEntry(entry) {
 }
 
 /**
+ * Checks whether a SAN belongs to the target domain's namespace or base domain.
+ * Shared CDN/multi-tenant certificates include dozens of unrelated third-party domains.
+ *
+ * @param {string} san
+ * @param {string} targetDomain
+ * @returns {boolean}
+ */
+function isRelatedSAN(san, targetDomain) {
+  if (!san || !targetDomain) return true;
+  const s = san.toLowerCase().trim().replace(/^\*\./, '');
+  const t = targetDomain.toLowerCase().trim().replace(/^\*\./, '');
+  if (s === t) return true;
+  if (s.endsWith('.' + t)) return true;
+  const sParts = s.split('.');
+  const tParts = t.split('.');
+  if (sParts.length >= 2 && tParts.length >= 2) {
+    const sBase = sParts.slice(-2).join('.');
+    const tBase = tParts.slice(-2).join('.');
+    if (sBase === tBase) return true;
+  }
+  return false;
+}
+
+/**
  * Analyzes a list of normalized CT records for security-supporting signals.
  * CT signals are informational only; they NEVER produce a risk score on their own.
  *
@@ -190,12 +214,17 @@ function analyzeCT(domain, records) {
   }
   const uniqueSANs = Array.from(sanSet);
 
-  // Detect brand keyword presence in SANs (supporting signal only)
+  // Detect brand keyword presence in SANs (supporting signal only).
+  // A brand keyword appearing in an unrelated SAN on a shared CDN/multi-tenant certificate
+  // must NOT establish brand presence for the target domain.
   let brandInSAN = null;
-  const sanText = uniqueSANs.join(' ');
-  for (const brand of Object.keys(BRAND_TARGETS)) {
-    const keyword = brand.split(' ')[0].toLowerCase(); // e.g. 'paypal', 'google', 'amazon'
-    if (sanText.includes(keyword) && !sanText.includes(BRAND_TARGETS[brand])) {
+  const relatedSANs = uniqueSANs.filter(san => isRelatedSAN(san, domain));
+  const sanText = relatedSANs.join(' ');
+  for (const [brand, brandDomain] of Object.entries(BRAND_TARGETS)) {
+    const brandLabel = brandDomain.split('.')[0].toLowerCase(); // e.g. 'paypal', 'examplebank', 'google'
+    const brandSlug = brand.toLowerCase().replace(/\s+/g, '-'); // e.g. 'example-bank'
+    const matchesBrand = sanText.includes(brandLabel) || (brandSlug !== brandLabel && sanText.includes(brandSlug));
+    if (matchesBrand && !sanText.includes(brandDomain)) {
       brandInSAN = brand;
       break;
     }

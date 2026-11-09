@@ -72,9 +72,12 @@ async function analyze(ctx = {}) {
 
   // 2. Expiration Date & Days Remaining
   let daysRemaining = null;
-  if (peerCert.validTo) {
-    const expiryTime = new Date(peerCert.validTo).getTime();
-    daysRemaining = Math.round((expiryTime - Date.now()) / (1000 * 60 * 60 * 24));
+  const certExpiry = peerCert.validTo || peerCert.valid_to;
+  if (certExpiry) {
+    const expiryTime = new Date(certExpiry).getTime();
+    if (!isNaN(expiryTime)) {
+      daysRemaining = Math.round((expiryTime - Date.now()) / (1000 * 60 * 60 * 24));
+    }
   }
 
   if (daysRemaining !== null) {
@@ -84,16 +87,16 @@ async function analyze(ctx = {}) {
         name: 'Certificate Expired',
         severity: 'High',
         explanation: `The TLS certificate expired ${Math.abs(daysRemaining)} day(s) ago.`,
-        evidence: `Expired on ${peerCert.validTo}`,
+        evidence: `Expired on ${certExpiry}`,
       });
-      evidence.push(`Certificate expired on ${peerCert.validTo}`);
+      evidence.push(`Certificate expired on ${certExpiry}`);
     } else if (daysRemaining < 14) {
       riskPoints += 20;
       findings.push({
         name: 'Certificate Expiring Soon',
         severity: 'Medium',
         explanation: `The TLS certificate will expire in ${daysRemaining} day(s).`,
-        evidence: `Expires on ${peerCert.validTo}`,
+        evidence: `Expires on ${certExpiry}`,
       });
       evidence.push(`Certificate expires in ${daysRemaining} days`);
     } else {
@@ -282,8 +285,8 @@ async function analyze(ctx = {}) {
     days: daysRemaining !== null ? daysRemaining : 'Unknown',
     match: hostnameMatch,
     chain: isChainAuthorized,
-    validFrom: peerCert.validFrom,
-    validTo: peerCert.validTo,
+    validFrom: peerCert.validFrom || peerCert.valid_from || null,
+    validTo: peerCert.validTo || peerCert.valid_to || null,
     fingerprint: peerCert.fingerprint,
     ct: ctSummaryObj,
     history: ctHistory,

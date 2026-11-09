@@ -43,6 +43,35 @@ const optionalAuth = (req, res, next) => {
 };
 
 /**
+ * Calculates assessment coverage dynamically from persisted module states.
+ * A module counts as assessed only if its status is 'live' and its score is a valid non-null number.
+ * Unavailable or missing modules never count as assessed.
+ *
+ * @param {object} modulesObj
+ * @returns {{ assessed: number, total: number, coverage: number, modulesAssessed: string }}
+ */
+function calculateCoverage(modulesObj = {}) {
+  const CORE_MODULES = ['threat', 'security', 'certificate', 'community'];
+  const total = CORE_MODULES.length;
+  let assessed = 0;
+
+  for (const key of CORE_MODULES) {
+    const mod = modulesObj?.[key];
+    const isLive = mod?.status === 'live';
+    const hasValidScore = typeof mod?.score === 'number' && !isNaN(mod?.score);
+    if (isLive && hasValidScore) {
+      assessed++;
+    }
+  }
+
+  const coverage = Math.round((assessed / total) * 100);
+  const modulesAssessed = `${assessed}/${total}`;
+  return { assessed, total, coverage, modulesAssessed };
+}
+
+router.calculateCoverage = calculateCoverage;
+
+/**
  * POST /api/scans
  * Submit a website URL for security assessment.
  */
@@ -220,6 +249,8 @@ router.post(
       ).catch(() => {});
     }
 
+    const postCov = calculateCoverage(scanDoc.modules);
+
     const responseData = {
       id: scanDoc._id,
       url: scanDoc.submittedUrl,
@@ -230,8 +261,8 @@ router.post(
       classification: scanDoc.classification,
       confidence: scanDoc.confidence,
       confidenceLevel: assessment.confidenceLevel,
-      coverage: assessment.coverage,
-      modulesAssessed: assessment.modulesAssessed || '4/4',
+      coverage: postCov.coverage,
+      modulesAssessed: postCov.modulesAssessed,
       mode: scanDoc.mode || 'live',
       isDemo: scanDoc.mode === 'demo',
       modules: assessment.modules,
@@ -353,6 +384,8 @@ router.get(
 
     const evidenceList = Array.isArray(scan.evidence) ? scan.evidence : [];
 
+    const cov = calculateCoverage(scan.modules);
+
     const responseData = {
       id: scan._id,
       url: scan.submittedUrl,
@@ -361,8 +394,8 @@ router.get(
       score: scan.riskScore,
       classification: scan.classification,
       confidence: scan.confidence,
-      coverage: 100,
-      modulesAssessed: '4/4',
+      coverage: cov.coverage,
+      modulesAssessed: cov.modulesAssessed,
       status: scan.status,
       mode: scan.mode,
       isDemo: scan.mode === 'demo',

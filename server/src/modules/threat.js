@@ -343,31 +343,44 @@ async function analyze(ctx = {}) {
         );
         evidence.push(`CT log names corroborate ${brandInSAN} impersonation`);
       } else {
-        // Discovered brand name in CT SANs not previously flagged on hostname
-        // If other risk indicators exist (corroborating evidence), add moderate supporting points (15)
-        // If completely isolated without other indicators, add Info finding (0 pts) so CT alone never escalates verdict
+        // Discovered brand name in CT SANs not previously flagged on hostname.
+        // CT observations must remain informational unless independently corroborated by relevant domain evidence.
+        // A brand keyword appearing in an unrelated SAN must not establish impersonation.
+        // Do not manufacture an impersonation object from CT-only evidence.
         const hasCorroboratingThreat = threatPoints > 0 || verifiedThreat || threatIntelMatches.length > 0;
-        const ctPoints = hasCorroboratingThreat ? 15 : 0;
-        const severity = hasCorroboratingThreat ? 'Medium' : 'Info';
 
-        addFinding(
-          `Brand Target in Certificate SANs (${brandInSAN})`,
-          severity,
-          ctPoints,
-          `Certificate Transparency logs contain Subject Alternative Names referencing "${brandInSAN}", though domain is not hosted on ${brandDomain || 'the official brand domain'}.`,
-          brandInSAN
-        );
-        evidence.push(`CT SAN references ${brandInSAN}`);
+        if (hasCorroboratingThreat) {
+          // Domain has independent threat indicators (e.g. keywords, phishing indicators, threat intel)
+          addFinding(
+            `Brand Target in Certificate SANs (${brandInSAN})`,
+            'Medium',
+            15,
+            `Certificate Transparency logs contain Subject Alternative Names referencing "${brandInSAN}", though domain is not hosted on ${brandDomain || 'the official brand domain'}.`,
+            brandInSAN
+          );
+          evidence.push(`CT SAN references ${brandInSAN}`);
 
-        if (!impersonation) {
-          impersonation = {
-            brand: brandInSAN,
-            targetDomain: brandDomain,
-            evidence: [
-              `Domain's logged certificate SANs reference ${brandInSAN}.`,
-              'Verify domain identity before entering credentials.',
-            ],
-          };
+          if (!impersonation) {
+            impersonation = {
+              brand: brandInSAN,
+              targetDomain: brandDomain,
+              evidence: [
+                `Domain's logged certificate SANs reference ${brandInSAN}.`,
+                'Verify domain identity before entering credentials.',
+              ],
+            };
+          }
+        } else {
+          // Isolated CT observation without independent domain evidence:
+          // Keep informational only (0 pts) so CT alone never escalates verdict, adds 15 points, or triggers an impersonation banner
+          addFinding(
+            `Brand Target in Certificate SANs (${brandInSAN})`,
+            'Info',
+            0,
+            `Certificate Transparency logs contain Subject Alternative Names referencing "${brandInSAN}". Without independent domain threat indicators, this observation is informational.`,
+            brandInSAN
+          );
+          evidence.push(`CT SAN references ${brandInSAN} (informational; uncorroborated by domain threat indicators)`);
         }
       }
     }

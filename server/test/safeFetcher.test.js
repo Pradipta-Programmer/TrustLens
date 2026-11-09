@@ -397,6 +397,13 @@ test('safeFetcher test suite', async (t) => {
       );
     });
 
+    // Test 14: Non-HTTPS request returns tls: null
+    await t.test('plain HTTP request returns tls: null without TLS extraction', async () => {
+      const res = await safeFetch(`http://test-site.example:${serverPort}/ok`, testOptions);
+      assert.equal(res.status, 200);
+      assert.equal(res.tls, null, 'Plain HTTP request must return tls: null');
+    });
+
   } finally {
     server.close();
   }
@@ -440,6 +447,13 @@ test('safeFetcher test suite', async (t) => {
       assert.equal(res.tls.authorized, true);
       assert.ok(res.tls.peerCertificate, 'Peer certificate should be extracted');
       assert.ok(res.tls.peerCertificate.subject.CN.includes(validHostname));
+      assert.ok(res.tls.peerCertificate.validTo, 'Certificate validTo expiration must be returned');
+      assert.ok(res.tls.peerCertificate.validFrom, 'Certificate validFrom start date must be returned');
+      assert.ok(res.tls.peerCertificate.issuer, 'Certificate issuer must be returned');
+      assert.ok(res.tls.peerCertificate.fingerprint, 'Certificate fingerprint must be returned');
+      // Verify metadata remains intact and accessible in memory after socket teardown
+      assert.equal(typeof res.tls.peerCertificate.subject, 'object');
+      assert.equal(typeof res.tls.peerCertificate.validTo, 'string');
     });
 
     // Test 15: Hostname mismatch rejection

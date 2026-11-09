@@ -9,6 +9,7 @@ const config = require('../src/config');
 const { connectDb, dbReady, closeDb, assertTestDatabase } = require('../src/config/db');
 const Scan = require('../src/models/Scan');
 const Domain = require('../src/models/Domain');
+const scansRouter = require('../src/routes/scans');
 
 test('Scans API Integration Suite', async (t) => {
   let srv;
@@ -278,6 +279,105 @@ test('Scans API Integration Suite', async (t) => {
       assert.equal(json.data.isDemo, false);
       assert.ok(typeof json.data.modulesAssessed === 'string' && json.data.modulesAssessed.endsWith('/4'));
       assert.equal(json.data.a?.isDemo, false);
+    });
+
+    // Test 15: calculateCoverage unit tests across all coverage variations
+    await t.test('calculateCoverage computes coverage and assessed counts accurately', () => {
+      const { calculateCoverage } = scansRouter;
+
+      // 4/4 assessed
+      const full = calculateCoverage({
+        threat: { status: 'live', score: 10 },
+        security: { status: 'live', score: 20 },
+        certificate: { status: 'live', score: 0 },
+        community: { status: 'live', score: 0 },
+      });
+      assert.equal(full.assessed, 4);
+      assert.equal(full.total, 4);
+      assert.equal(full.coverage, 100);
+      assert.equal(full.modulesAssessed, '4/4');
+
+      // 3/4 assessed (certificate unavailable)
+      const certUnavail = calculateCoverage({
+        threat: { status: 'live', score: 0 },
+        security: { status: 'live', score: 46 },
+        certificate: { status: 'unavailable', score: null },
+        community: { status: 'live', score: 0 },
+      });
+      assert.equal(certUnavail.assessed, 3);
+      assert.equal(certUnavail.total, 4);
+      assert.equal(certUnavail.coverage, 75);
+      assert.equal(certUnavail.modulesAssessed, '3/4');
+
+      // 2/4 assessed (certificate unavailable, community not_assessed)
+      const twoAssessed = calculateCoverage({
+        threat: { status: 'live', score: 15 },
+        security: { status: 'live', score: 30 },
+        certificate: { status: 'unavailable', score: null },
+        community: { status: 'not_assessed', score: null },
+      });
+      assert.equal(twoAssessed.assessed, 2);
+      assert.equal(twoAssessed.total, 4);
+      assert.equal(twoAssessed.coverage, 50);
+      assert.equal(twoAssessed.modulesAssessed, '2/4');
+
+      // 0/4 assessed
+      const zeroAssessed = calculateCoverage({
+        threat: { status: 'failed', score: null },
+        security: { status: 'not_assessed', score: null },
+        certificate: { status: 'unavailable', score: null },
+        community: { status: 'unavailable', score: null },
+      });
+      assert.equal(zeroAssessed.assessed, 0);
+      assert.equal(zeroAssessed.total, 4);
+      assert.equal(zeroAssessed.coverage, 0);
+      assert.equal(zeroAssessed.modulesAssessed, '0/4');
+
+      // Missing module data
+      const missing = calculateCoverage({});
+      assert.equal(missing.assessed, 0);
+      assert.equal(missing.total, 4);
+      assert.equal(missing.coverage, 0);
+      assert.equal(missing.modulesAssessed, '0/4');
+
+      const nullData = calculateCoverage(null);
+      assert.equal(nullData.assessed, 0);
+      assert.equal(nullData.total, 4);
+      assert.equal(nullData.coverage, 0);
+      assert.equal(nullData.modulesAssessed, '0/4');
+    });
+
+    // Test 16: GET /api/scans/:id dynamically computes coverage from persisted modules
+    await t.test('GET /api/scans/:id dynamically computes coverage when certificate is unavailable (3/4 = 75%)', async () => {
+      // Create a test scan doc with certificate unavailable
+      const unavailScan = await Scan.create({
+        submittedUrl: 'https://partial-scan.example/',
+        domainName: 'partial-scan.example',
+        requestedBy: userAId,
+        mode: 'live',
+        status: 'completed',
+        riskScore: 25,
+        confidence: 60,
+        classification: 'Moderate Risk',
+        modules: {
+          threat: { status: 'live', score: 0, findings: [] },
+          security: { status: 'live', score: 35, findings: [] },
+          certificate: { status: 'unavailable', score: null, findings: [] },
+          community: { status: 'live', score: 0, findings: [] },
+        },
+      });
+
+      try {
+        const [status, json] = await getJson(`/api/scans/${unavailScan._id}`, {
+          authorization: `Bearer ${tokenUserA}`,
+        });
+
+        assert.equal(status, 200);
+        assert.equal(json.data.coverage, 75, 'Coverage must be 75% for 3/4 assessed modules');
+        assert.equal(json.data.modulesAssessed, '3/4', 'modulesAssessed must be 3/4');
+      } finally {
+        await Scan.deleteOne({ _id: unavailScan._id }).catch(() => {});
+      }
     });
 
   } finally {

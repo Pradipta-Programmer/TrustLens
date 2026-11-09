@@ -804,4 +804,78 @@ test('Certificate Transparency (crtshClient) Suite', async (t) => {
     }
     assert.equal(inFlightMap.size, 0);
   });
+
+  // ── Regression Tests: CT SAN False-Positive Impersonation Prevention ───────
+  await t.test('Regression: example.com with unrelated Example Bank SAN must not become Example Bank impersonation', async () => {
+    // Multi-tenant certificate bundles example.com with an unrelated domain containing "Example Bank"
+    const records = [
+      {
+        id: 101,
+        sans: ['example.com', 'example-bank-login.othertenant.org'],
+        entryTimestamp: new Date().toISOString(),
+      },
+    ];
+
+    const analysis = analyzeCT('example.com', records);
+    // Unrelated SAN on shared certificate must not trigger brandInSAN for target domain
+    assert.equal(analysis.brandInSAN, null);
+
+    const res = await threatModule.analyze({
+      url: 'https://example.com/',
+      ct: { status: 'available', summary: analysis },
+    });
+
+    assert.equal(res.status, 'live');
+    assert.equal(res.score, 0);
+    assert.equal(res.impersonation, null, 'Unrelated Example Bank SAN must not create an impersonation finding');
+    assert.ok(!res.findings.some(f => f.name.includes('Example Bank')));
+  });
+
+  await t.test('Regression: Unrelated PayPal SAN on a shared certificate must not trigger PayPal impersonation', async () => {
+    // CDN certificate bundles clean domain my-site.com with an unrelated third-party PayPal checkout SAN
+    const records = [
+      {
+        id: 102,
+        sans: ['my-site.com', 'cdn.my-site.com', 'paypal-checkout.thirdparty-merchant.net'],
+        entryTimestamp: new Date().toISOString(),
+      },
+    ];
+
+    const analysis = analyzeCT('my-site.com', records);
+    assert.equal(analysis.brandInSAN, null);
+
+    const res = await threatModule.analyze({
+      url: 'https://my-site.com/',
+      ct: { status: 'available', summary: analysis },
+    });
+
+    assert.equal(res.status, 'live');
+    assert.equal(res.score, 0);
+    assert.equal(res.impersonation, null, 'Unrelated PayPal SAN on shared cert must not trigger PayPal impersonation');
+    assert.ok(!res.findings.some(f => f.name.includes('PayPal')));
+  });
+
+  await t.test('Regression: A genuinely suspicious lookalike domain with independent evidence retains detection', async () => {
+    // Lookalike domain that directly contains PayPal and sensitive keywords in URL structure
+    const records = [
+      {
+        id: 103,
+        sans: ['paypal-portal.security-update.attacker.com'],
+        entryTimestamp: new Date().toISOString(),
+      },
+    ];
+
+    const analysis = analyzeCT('paypal-portal.security-update.attacker.com', records);
+    assert.equal(analysis.brandInSAN, 'PayPal');
+
+    const res = await threatModule.analyze({
+      url: 'https://paypal-portal.security-update.attacker.com/login',
+      ct: { status: 'available', summary: analysis },
+    });
+
+    assert.equal(res.status, 'live');
+    assert.ok(res.score >= 35, 'Genuinely suspicious lookalike domain must retain high score');
+    assert.ok(res.impersonation, 'Genuinely suspicious lookalike must retain impersonation finding');
+    assert.equal(res.impersonation.brand, 'PayPal');
+  });
 });

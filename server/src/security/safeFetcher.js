@@ -165,6 +165,52 @@ async function safeFetch(targetUrl, options = {}) {
 }
 
 /**
+ * Safely extracts TLS certificate and session metadata from a TLSSocket.
+ * Handles destroyed or non-TLS sockets gracefully without throwing.
+ *
+ * @param {object} socket
+ * @returns {object|null}
+ */
+function extractTlsMetadata(socket) {
+  if (!socket || typeof socket.getPeerCertificate !== 'function') {
+    return null;
+  }
+  try {
+    let cert = null;
+    try {
+      cert = socket.getPeerCertificate(true);
+    } catch {
+      cert = null;
+    }
+    if (!cert || Object.keys(cert).length === 0) {
+      try {
+        cert = socket.getPeerCertificate(false);
+      } catch {
+        cert = null;
+      }
+    }
+
+    const hasCert = cert && Object.keys(cert).length > 0;
+    return {
+      authorized: socket.authorized === true,
+      authorizationError: socket.authorizationError || null,
+      protocol: typeof socket.getProtocol === 'function' ? socket.getProtocol() : null,
+      cipher: typeof socket.getCipher === 'function' ? socket.getCipher() : null,
+      peerCertificate: hasCert ? {
+        subject: cert.subject,
+        issuer: cert.issuer,
+        validFrom: cert.valid_from || cert.validFrom,
+        validTo: cert.valid_to || cert.validTo,
+        subjectaltname: cert.subjectaltname,
+        fingerprint: cert.fingerprint256 || cert.fingerprint,
+      } : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Executes a single HTTP/HTTPS request pinned directly to a validated IP.
  */
 function executeHop({ url, pinnedIp, method, timeoutMs, maxBodyBytes, headers, userAgent, rejectUnauthorized, ca }) {
@@ -226,6 +272,8 @@ function executeHop({ url, pinnedIp, method, timeoutMs, maxBodyBytes, headers, u
       }
     }
 
+    let capturedTls = null;
+
     let req;
     try {
       req = client.request(reqOptions);
@@ -234,31 +282,38 @@ function executeHop({ url, pinnedIp, method, timeoutMs, maxBodyBytes, headers, u
       return reject(new SafeFetchError('REQUEST_INIT_FAILED', `Failed to initialize request: ${err.message}`));
     }
 
+    if (isHttps) {
+      req.on('socket', (socket) => {
+        // Capture early if socket is already securely connected
+        if (socket.authorized !== undefined || typeof socket.getPeerCertificate === 'function') {
+          const meta = extractTlsMetadata(socket);
+          if (meta && meta.peerCertificate) {
+            capturedTls = meta;
+          }
+        }
+        // Capture at secureConnect immediately upon TLS handshake completion
+        socket.on('secureConnect', () => {
+          const meta = extractTlsMetadata(socket);
+          if (meta && meta.peerCertificate) {
+            capturedTls = meta;
+          }
+        });
+      });
+    }
+
     let bytesRead = 0;
     const chunks = [];
     let limitExceeded = false;
 
     req.on('response', (res) => {
-      let tls = null;
-      if (isHttps && res.socket && typeof res.socket.getPeerCertificate === 'function') {
-        try {
-          const cert = res.socket.getPeerCertificate(false);
-          tls = {
-            authorized: res.socket.authorized,
-            authorizationError: res.socket.authorizationError || null,
-            protocol: res.socket.getProtocol ? res.socket.getProtocol() : null,
-            cipher: res.socket.getCipher ? res.socket.getCipher() : null,
-            peerCertificate: cert && Object.keys(cert).length > 0 ? {
-              subject: cert.subject,
-              issuer: cert.issuer,
-              validFrom: cert.valid_from,
-              validTo: cert.valid_to,
-              subjectaltname: cert.subjectaltname,
-              fingerprint: cert.fingerprint256 || cert.fingerprint,
-            } : null,
-          };
-        } catch {
-          tls = null;
+      let tls = capturedTls;
+      // Fallback: If not captured at secureConnect, extract before response body drain / teardown
+      if (!tls || !tls.peerCertificate) {
+        if (isHttps && res.socket) {
+          const meta = extractTlsMetadata(res.socket);
+          if (meta) {
+            tls = meta;
+          }
         }
       }
 

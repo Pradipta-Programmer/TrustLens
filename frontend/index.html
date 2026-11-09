@@ -132,18 +132,20 @@ ${Object.keys(FX).map((k,i)=>`<button class="alt sm" data-d="${k}">${["Trusted",
        V.result(last);
      }else{
        const err=json?.error?.message||`Scan request failed with HTTP ${res.status}.`;
-       $("#res").innerHTML=`<div class="card bad"><h3>Scan Failed</h3><p>${esc(err)}</p><span class="mut">Error code: ${esc(json?.error?.code||'SCAN_FAILED')}</span><div style="margin-top:10px"><button id="res-retry" class="sm alt">Retry scan</button></div></div>`;
+       $("#res").innerHTML=`<div class="card bad"><h3>Live Assessment Failed</h3><p>${esc(err)}</p><p class="mut">The live assessment could not be completed. Please check the URL and backend connectivity, then try again.</p><span class="mut">Error code: ${esc(json?.error?.code||'SCAN_FAILED')}</span><div style="margin-top:10px"><button id="res-retry" class="sm alt">Retry scan</button></div></div>`;
        if($("#res-retry"))$("#res-retry").onclick=()=>run(v);
      }
    }catch(e){
-     last=scan(x);V.result(last);
+     const msg=e?.message||"Network error or backend scanner unreachable.";
+     $("#res").innerHTML=`<div class="card bad"><h3>Live Assessment Failed</h3><p>Unable to connect to the backend scanner: ${esc(msg)}</p><p class="mut">The live assessment could not be completed. Please ensure the TrustLens backend service is running, verify your network connection, and try again.</p><div style="margin-top:10px"><button id="res-retry" class="sm alt">Retry scan</button></div></div>`;
+     if($("#res-retry"))$("#res-retry").onclick=()=>run(v);
    }finally{
      if(goBtn){goBtn.disabled=false;goBtn.textContent=goBtn.dataset.orig||"Scan website"}
      if(uInp)uInp.disabled=false;
    }
  };
  $("#go").onclick=()=>run($("#u").value);$("#u").onkeydown=(e)=>{if(e.key==="Enter")run(e.target.value);};
- document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{$("#u").value="https://"+b.dataset.d;run($("#u").value)})},
+ document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{const d="https://"+b.dataset.d;$("#u").value=d;const dx=parse(d);if(dx){last=scan(dx);V.result(last);}})},
 result(r){const[c,cc]=cls(r.score),a=r.a,names={threat:"Threat intelligence",sec:"Website security",cert:"Certificate trust",comm:"Community reputation"};
  const isDemo=r.isDemo===true||r.mode==='demo'||(r.mode!=='live'&&!r.id&&a&&a.fx&&a.fx.isDemo!==false);
  const neg=a.f.map(x=>x[1]),pos=[...a.pos];if(a.fx&&Array.isArray(a.fx.sec)){a.fx.sec.filter(s=>s[1]=="Passed").length>4&&pos.push("Most security headers are in place.");a.fx.cert&&a.fx.cert.match&&a.fx.cert.chain&&a.fx.cert.days>0&&pos.push("Certificate is valid and matches the domain.");a.fx.sec.filter(s=>s[1]=="Failed").length>2&&neg.push("Several security settings are missing.");a.fx.cert&&a.fx.cert.days<0&&neg.push("Certificate has expired.")}
