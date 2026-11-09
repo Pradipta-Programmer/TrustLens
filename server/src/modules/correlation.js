@@ -121,7 +121,10 @@ function correlate(moduleResults = {}, meta = {}) {
   addUnique(positiveFindingsSet, commResult.positiveFindings, 'community');
 
   addUnique(negativeFindingsSet, threatResult.findings, 'threat');
-  addUnique(negativeFindingsSet, secResult.findings, 'security');
+  const negativeSecFindings = Array.isArray(secResult.findings)
+    ? secResult.findings.filter(f => !f || !f.status || f.status === 'Failed' || f.status === 'Warning')
+    : [];
+  addUnique(negativeFindingsSet, negativeSecFindings, 'security');
   addUnique(negativeFindingsSet, certResult.findings, 'certificate');
   addUnique(negativeFindingsSet, commResult.findings, 'community');
 

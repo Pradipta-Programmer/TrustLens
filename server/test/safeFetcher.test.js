@@ -415,7 +415,11 @@ test('safeFetcher test suite', async (t) => {
   const testCert = generateTestCert(validHostname);
 
   await new Promise((resolve) => {
-    httpsServer = https.createServer({ key: testCert.key, cert: testCert.cert }, (req, res) => {
+    httpsServer = https.createServer({ key: testCert.key, cert: testCert.cert, ticketKeys: false }, (req, res) => {
+      if (req.url === '/redirect') {
+        res.writeHead(302, { Location: `https://${validHostname}:${httpsServerPort}/secure` });
+        return res.end();
+      }
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
@@ -495,6 +499,70 @@ test('safeFetcher test suite', async (t) => {
           return true;
         }
       );
+    });
+
+    // Test 17: HTTPS redirect preserves terminal TLS metadata
+    await t.test('preserves terminal TLS certificate metadata across HTTPS redirects', async () => {
+      const res = await safeFetch(`https://${validHostname}:${httpsServerPort}/redirect`, {
+        resolveAndValidate: async (u) => ({
+          ok: true,
+          url: new URL(u),
+          addresses: ['127.0.0.1'],
+        }),
+        isBlockedIp: () => false,
+        ca: [testCert.cert],
+      });
+      assert.equal(res.status, 200);
+      assert.equal(res.redirects.length, 1);
+      assert.ok(res.tls, 'Terminal TLS metadata must be present');
+      assert.equal(res.tls.authorized, true);
+      assert.ok(res.tls.peerCertificate, 'Terminal peer certificate must be preserved');
+      assert.ok(res.tls.peerCertificate.subject.CN.includes(validHostname));
+    });
+
+    // Test 18: Metadata persistence after socket closure
+    await t.test('certificate metadata remains intact and completely accessible after socket teardown', async () => {
+      const res = await safeFetch(`https://${validHostname}:${httpsServerPort}/secure`, {
+        resolveAndValidate: async (u) => ({
+          ok: true,
+          url: new URL(u),
+          addresses: ['127.0.0.1'],
+        }),
+        isBlockedIp: () => false,
+        ca: [testCert.cert],
+      });
+      assert.equal(res.status, 200);
+      // Wait for socket to completely close/teardown
+      await new Promise(r => setTimeout(r, 50));
+      assert.ok(res.tls && res.tls.peerCertificate, 'Certificate metadata must persist');
+      assert.equal(typeof res.tls.peerCertificate.subject, 'object');
+      assert.equal(typeof res.tls.peerCertificate.issuer, 'object');
+      assert.equal(typeof res.tls.peerCertificate.validTo, 'string');
+      assert.equal(typeof res.tls.peerCertificate.validFrom, 'string');
+      assert.equal(typeof res.tls.peerCertificate.fingerprint, 'string');
+    });
+
+    // Test 19: Example.com live verification test (skips gracefully if offline)
+    await t.test('live HTTPS certificate extraction against public endpoint (when reachable)', async (subtest) => {
+      let isOnline = false;
+      try {
+        const dnsTest = await require('node:dns').promises.lookup('example.com').catch(() => null);
+        if (dnsTest && dnsTest.address) isOnline = true;
+      } catch {
+        isOnline = false;
+      }
+      if (!isOnline) {
+        subtest.skip('Skipped external network test: DNS resolution not available in sandbox');
+        return;
+      }
+
+      const res = await safeFetch('https://example.com/', { timeoutMs: 5000 });
+      assert.equal(res.status, 200);
+      assert.ok(res.tls, 'TLS metadata must be returned for example.com');
+      assert.equal(res.tls.authorized, true);
+      assert.ok(res.tls.peerCertificate, 'Peer certificate must be extracted from example.com');
+      assert.ok(res.tls.peerCertificate.subject, 'Subject CN must be extracted');
+      assert.ok(res.tls.peerCertificate.validTo, 'validTo must be extracted');
     });
   } finally {
     httpsServer.close();

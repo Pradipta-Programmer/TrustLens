@@ -190,6 +190,16 @@ test('Core Assessment Engine test suite', async (t) => {
     const httpRes = await certificateModule.analyze({ url: 'http://plain-http.example.com/', fetchResult: null });
     assert.equal(httpRes.status, 'not_assessed');
     assert.equal(httpRes.score, null);
+
+    // 6d: Missing/unavailable certificate on HTTPS endpoint
+    const unavailFetch = {
+      url: 'https://no-cert.example.com/',
+      tls: { authorized: true, peerCertificate: null },
+    };
+    const unavailRes = await certificateModule.analyze({ url: 'https://no-cert.example.com/', fetchResult: unavailFetch });
+    assert.equal(unavailRes.status, 'unavailable');
+    assert.equal(unavailRes.score, null);
+    assert.ok(unavailRes.findings.some(f => f.name === 'TLS Certificate Unavailable'));
   });
 
   // Test 7: Community intelligence unavailable state and verified report scaling
@@ -371,5 +381,66 @@ test('Core Assessment Engine test suite', async (t) => {
     assert.ok(Array.isArray(report.recommendations));
     assert.ok(report.m, 'Must provide frontend compatibility m object');
     assert.ok(report.a, 'Must provide frontend compatibility a object');
+  });
+
+  // Test 14: Negative findings classification ensures passed checks do not appear as adverse findings
+  await t.test('negativeFindings excludes passed checks while retaining failed and warning checks', () => {
+    const correlationInput = {
+      threat: {
+        status: 'live',
+        score: 0,
+        findings: [],
+        positiveFindings: ['No malicious threat intelligence matches found.'],
+      },
+      security: {
+        status: 'live',
+        score: 35,
+        checks: [
+          ['HTTPS available', 'Passed', 'High', 'Site is served over encrypted HTTPS.'],
+          ['HTTP→HTTPS redirect', 'Passed', 'Medium', 'Initial connection initiated over HTTPS.'],
+          ['HSTS', 'Failed', 'Medium', 'Strict-Transport-Security header is missing.'],
+          ['Content-Security-Policy', 'Failed', 'Medium', 'No Content-Security-Policy header found.'],
+          ['X-Content-Type-Options', 'Warning', 'Low', 'X-Content-Type-Options header is missing.'],
+        ],
+        findings: [
+          { name: 'HTTPS available', status: 'Passed', severity: 'High', explanation: 'Site is served over encrypted HTTPS.' },
+          { name: 'HTTP→HTTPS redirect', status: 'Passed', severity: 'Medium', explanation: 'Initial connection initiated over HTTPS.' },
+          { name: 'HSTS', status: 'Failed', severity: 'Medium', explanation: 'Strict-Transport-Security header is missing.' },
+          { name: 'Content-Security-Policy', status: 'Failed', severity: 'Medium', explanation: 'No Content-Security-Policy header found.' },
+          { name: 'X-Content-Type-Options', status: 'Warning', severity: 'Low', explanation: 'X-Content-Type-Options header is missing.' },
+        ],
+        positiveFindings: [
+          'Site is served over encrypted HTTPS.',
+          'Initial connection initiated over HTTPS.',
+        ],
+      },
+      certificate: {
+        status: 'live',
+        score: 0,
+        findings: [],
+        positiveFindings: ['Certificate is valid and active.'],
+      },
+      community: {
+        status: 'live',
+        score: 0,
+        findings: [],
+        positiveFindings: [],
+      },
+    };
+
+    const report = correlate(correlationInput, { hostname: 'sec-findings.example' });
+
+    // Positive findings must retain passed security checks
+    assert.ok(report.positiveFindings.includes('Site is served over encrypted HTTPS.'));
+    assert.ok(report.positiveFindings.includes('Initial connection initiated over HTTPS.'));
+
+    // Negative findings MUST NOT contain passed checks
+    assert.ok(!report.negativeFindings.includes('Site is served over encrypted HTTPS.'), 'Passed HTTPS check must not be in negativeFindings');
+    assert.ok(!report.negativeFindings.includes('Initial connection initiated over HTTPS.'), 'Passed redirect check must not be in negativeFindings');
+
+    // Negative findings MUST retain failed and warning checks
+    assert.ok(report.negativeFindings.includes('Strict-Transport-Security header is missing.'), 'Failed HSTS must be in negativeFindings');
+    assert.ok(report.negativeFindings.includes('No Content-Security-Policy header found.'), 'Failed CSP must be in negativeFindings');
+    assert.ok(report.negativeFindings.includes('X-Content-Type-Options header is missing.'), 'Warning X-Content-Type-Options must be in negativeFindings');
   });
 });

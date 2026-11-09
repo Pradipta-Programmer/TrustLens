@@ -176,19 +176,25 @@ function extractTlsMetadata(socket) {
     return null;
   }
   try {
-    let cert = null;
+    // Step 1: Reliably extract peer leaf certificate first
+    let leafCert = null;
     try {
-      cert = socket.getPeerCertificate(true);
+      leafCert = socket.getPeerCertificate(false);
     } catch {
-      cert = null;
+      leafCert = null;
     }
-    if (!cert || Object.keys(cert).length === 0) {
-      try {
-        cert = socket.getPeerCertificate(false);
-      } catch {
-        cert = null;
-      }
+
+    // Step 2: Attempt detailed chain extraction without invalidating a captured leaf
+    let detailedCert = null;
+    try {
+      detailedCert = socket.getPeerCertificate(true);
+    } catch {
+      detailedCert = null;
     }
+
+    const cert = (detailedCert && Object.keys(detailedCert).length > 0)
+      ? detailedCert
+      : leafCert;
 
     const hasCert = cert && Object.keys(cert).length > 0;
     return {
@@ -270,6 +276,13 @@ function executeHop({ url, pinnedIp, method, timeoutMs, maxBodyBytes, headers, u
       if (!isIpHost) {
         reqOptions.servername = url.hostname; // TLS SNI
       }
+      reqOptions.agent = new https.Agent({
+        ca,
+        rejectUnauthorized,
+        servername: !isIpHost ? url.hostname : undefined,
+        maxCachedSessions: 0,
+        keepAlive: false,
+      });
     }
 
     let capturedTls = null;
@@ -311,7 +324,9 @@ function executeHop({ url, pinnedIp, method, timeoutMs, maxBodyBytes, headers, u
       if (!tls || !tls.peerCertificate) {
         if (isHttps && res.socket) {
           const meta = extractTlsMetadata(res.socket);
-          if (meta) {
+          if (meta && meta.peerCertificate) {
+            tls = meta;
+          } else if (!tls) {
             tls = meta;
           }
         }
