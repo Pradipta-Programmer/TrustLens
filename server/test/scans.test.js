@@ -99,6 +99,10 @@ test('Scans API Integration Suite', async (t) => {
       assert.ok(Array.isArray(json.data.recommendations));
       assert.ok(json.data.m, 'Must include frontend compatibility m object');
       assert.ok(json.data.a, 'Must include frontend compatibility a object');
+      assert.equal(json.data.mode, 'live', 'Live scan must report mode: live');
+      assert.equal(json.data.isDemo, false, 'Live scan must have isDemo: false');
+      assert.ok(typeof json.data.modulesAssessed === 'string' && json.data.modulesAssessed.endsWith('/4'), 'Must report modulesAssessed');
+      assert.equal(json.data.a?.isDemo, false, 'Frontend compatibility object must indicate isDemo: false');
 
       createdScanId = json.data.id;
     });
@@ -261,6 +265,19 @@ test('Scans API Integration Suite', async (t) => {
 
       assert.equal(status, 200);
       assert.equal(json.data.id, createdScanId);
+    });
+
+    // Test 14: Regression test: Live scans return isDemo: false, mode: live, and modulesAssessed
+    await t.test('GET /api/scans/:id returns isDemo: false, mode: live, and modulesAssessed', async () => {
+      const [status, json] = await getJson(`/api/scans/${createdScanId}`, {
+        authorization: `Bearer ${tokenUserA}`,
+      });
+
+      assert.equal(status, 200);
+      assert.equal(json.data.mode, 'live');
+      assert.equal(json.data.isDemo, false);
+      assert.ok(typeof json.data.modulesAssessed === 'string' && json.data.modulesAssessed.endsWith('/4'));
+      assert.equal(json.data.a?.isDemo, false);
     });
 
   } finally {

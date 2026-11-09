@@ -86,7 +86,7 @@ function formatCertificateData(record, ctResult = null) {
       latest: s.latest || null,
       discoveredSANs: Array.isArray(s.uniqueSANs) ? s.uniqueSANs.slice(0, 20) : [],
       note: ctResult.note || null,
-      disclaimer: 'Certificate Transparency logs show publicly recorded certificate issuance. They do not establish that a website is safe or malicious.',
+      disclaimer: 'Certificate Transparency logs show publicly recorded certificate issuance. Multi-domain and CDN certificates frequently include unrelated third-party SANs; presence in this list does not establish common ownership or affiliation.',
     };
   } else if (ctResult && ctResult.status === 'unavailable') {
     ctField = {
@@ -97,7 +97,7 @@ function formatCertificateData(record, ctResult = null) {
       latest: null,
       discoveredSANs: [],
       note: ctResult.note || 'CT data temporarily unavailable.',
-      disclaimer: 'Certificate Transparency logs show publicly recorded certificate issuance. They do not establish that a website is safe or malicious.',
+      disclaimer: 'Certificate Transparency logs show publicly recorded certificate issuance. Multi-domain and CDN certificates frequently include unrelated third-party SANs; presence in this list does not establish common ownership or affiliation.',
     };
   } else {
     // Legacy fallback for records without CT enrichment
@@ -109,7 +109,7 @@ function formatCertificateData(record, ctResult = null) {
       latest: null,
       discoveredSANs: [],
       note: 'CT intelligence not yet fetched for this record. Run a new scan to populate.',
-      disclaimer: 'Certificate Transparency logs show publicly recorded certificate issuance. They do not establish that a website is safe or malicious.',
+      disclaimer: 'Certificate Transparency logs show publicly recorded certificate issuance. Multi-domain and CDN certificates frequently include unrelated third-party SANs; presence in this list does not establish common ownership or affiliation.',
     };
   }
 

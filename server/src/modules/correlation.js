@@ -188,6 +188,8 @@ function correlate(moduleResults = {}, meta = {}) {
     coverage: coveragePercent,
     assessedModules: assessedModuleCount,
     totalModules: totalModuleCount,
+    modulesAssessed: `${assessedModuleCount}/${totalModuleCount}`,
+    isDemo: false,
     weights: WEIGHTS,
     explanation,
     modules: {
@@ -213,7 +215,12 @@ function correlate(moduleResults = {}, meta = {}) {
       pos: compatFormat.positiveList,
       neg: compatFormat.negativeList,
       imp: compatFormat.impersonation,
-      fx: compatFormat.fx,
+      isDemo: false,
+      fx: {
+        sec: compatFormat.fx.sec,
+        cert: compatFormat.fx.cert,
+        isDemo: false,
+      },
     },
     rep: commResult.rep || { n: 0, uniq: 0, ver: 0, risk: moduleScores.community },
     host: meta.hostname || '',

@@ -67,8 +67,8 @@ const me="user-"+Math.random().toString(36).slice(2,8);
 function parse(u){u=u.trim();if(!/^[a-z]+:\/\//i.test(u))u="https://"+u;let x;try{x=new URL(u)}catch(e){return null}if(!/^https?:$/.test(x.protocol)||!x.hostname.includes("."))return null;return x}
 function lev(a,b){const d=[...Array(a.length+1)].map((_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]==b[j-1]?0:1));return d[a.length][b.length]}
 const regd=h=>h.split(".").slice(-2).join(".");
-function repOf(domain){const r=S.reports.filter(x=>x.domain==domain);const ver=r.filter(x=>x.status=="Verified"),uniq=new Set(r.flatMap(x=>x.users)).size;
- return{n:r.length,uniq,ver:ver.length,risk:Math.min(100,ver.length*55+(r.length-ver.length)*uniq*6)}}
+function recordHistory(host,dateStr,score){const list=S.hist[host]=S.hist[host]||[];const idx=list.findIndex(p=>p[0]===dateStr);if(idx>=0)list[idx][1]=score;else list.push([dateStr,score]);return list}
+function repOf(domain){const r=S.reports.filter(x=>x.domain==domain);const totalSubmissions=r.reduce((sum,x)=>sum+(Array.isArray(x.users)&&x.users.length?x.users.length:1),0);const allUsers=r.flatMap(x=>Array.isArray(x.users)?x.users:[x.user||x.reporter||'anon']);const uniq=new Set(allUsers).size||totalSubmissions;const ver=r.filter(x=>x.status=="Verified"||x.status=="verified").length;return{n:totalSubmissions,cases:r.length,uniq,ver,risk:Math.min(100,ver*55+(totalSubmissions-ver)*uniq*6)}}
 function analyze(x){const h=x.hostname.toLowerCase(),f=[],pos=[],fx=FX[h];let t=0;
  const add=(p,m)=>{t+=p;f.push([p,m])};
  if(/^\d+\.\d+\.\d+\.\d+$/.test(h))add(35,"Uses a raw IP address instead of a name.");
@@ -93,10 +93,14 @@ const cls=s=>s<25?["Low Risk","ok"]:s<50?["Moderate Risk","warn"]:s<75?["High Ri
 function scan(x){const a=analyze(x),h=x.hostname,rep=repOf(h),m={threat:a.t,sec:null,cert:null,comm:rep.risk};const mod=["Threat intelligence"];
  if(a.fx){m.sec=secScore(a.fx.sec);m.cert=certScore(a.fx.cert)}
  let ws=0,sum=0,assessed=0;for(const k in WEIGHTS)if(m[k]!=null){ws+=WEIGHTS[k];sum+=WEIGHTS[k]*m[k];assessed++}
+ const total=Object.keys(WEIGHTS).length;
+ const coverage=Math.round((assessed/total)*100);
+ const modulesAssessed=`${assessed}/${total}`;
  const score=Math.round(sum/ws);let conf=25+assessed*12+Math.min(30,rep.ver*20+rep.uniq*4)+(a.uh?10:0);conf=Math.min(95,conf);
  const confL=conf>=70?"High":conf>=50?"Medium":"Low";
- const r={url:x.href,host:h,score,m,a,rep,conf,confL,time:new Date().toLocaleString()};
- (S.hist[h]=S.hist[h]||[]).push([today,score]);return r}
+ const isDemo=!!a.fx;
+ const r={url:x.href,host:h,score,m,a,rep,conf,confL,coverage,modulesAssessed,mode:isDemo?'demo':'simulated',isDemo,time:new Date().toLocaleString()};
+ recordHistory(h,today,score);return r}
 const bar=(v,c)=>`<div class="bar" role="progressbar" aria-valuenow="${Math.round(v)}" aria-valuemin="0" aria-valuemax="100" aria-label="${Math.round(v)}%"><i style="width:${Math.max(0,Math.min(100,v))}%;background:var(--${c})"></i></div>`;
 const st=s=>`<span class="pill ${({Passed:"ok",Warning:"warn",Failed:"bad"})[s]||"na"}">${s}</span>`;
 function nav(){const p=[["scan","Scan"],["dashboard","Dashboard"],["explorer","Threat Explorer"],["report","Report a site"],["cert","Certificates"],["admin","Admin"]];const cur=location.hash.slice(1)||"scan";$("#nav").innerHTML=p.map(([k,l])=>`<a href="#${k}" class="${cur==k?"on":""}">${l}</a>`).join("")}
@@ -122,7 +126,7 @@ ${Object.keys(FX).map((k,i)=>`<button class="alt sm" data-d="${k}">${["Trusted",
      const json=await res.json().catch(()=>null);
      if(res.ok&&json&&json.ok){
        last=json.data;
-       (S.hist[last.host]=S.hist[last.host]||[]).push([today,last.score]);
+       recordHistory(last.host,today,last.score);
        S.recentScans=S.recentScans||[];
        S.recentScans.unshift({id:last.id,url:last.url,host:last.host,score:last.score,time:last.time,classification:last.classification});
        V.result(last);
@@ -141,17 +145,19 @@ ${Object.keys(FX).map((k,i)=>`<button class="alt sm" data-d="${k}">${["Trusted",
  $("#go").onclick=()=>run($("#u").value);$("#u").onkeydown=(e)=>{if(e.key==="Enter")run(e.target.value);};
  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{$("#u").value="https://"+b.dataset.d;run($("#u").value)})},
 result(r){const[c,cc]=cls(r.score),a=r.a,names={threat:"Threat intelligence",sec:"Website security",cert:"Certificate trust",comm:"Community reputation"};
- const neg=a.f.map(x=>x[1]),pos=[...a.pos];if(a.fx){a.fx.sec.filter(s=>s[1]=="Passed").length>4&&pos.push("Most security headers are in place.");a.fx.cert.match&&a.fx.cert.chain&&a.fx.cert.days>0&&pos.push("Certificate is valid and matches the domain.");a.fx.sec.filter(s=>s[1]=="Failed").length>2&&neg.push("Several security settings are missing.");a.fx.cert.days<0&&neg.push("Certificate has expired.")}
+ const isDemo=r.isDemo===true||r.mode==='demo'||(r.mode!=='live'&&!r.id&&a&&a.fx&&a.fx.isDemo!==false);
+ const neg=a.f.map(x=>x[1]),pos=[...a.pos];if(a.fx&&Array.isArray(a.fx.sec)){a.fx.sec.filter(s=>s[1]=="Passed").length>4&&pos.push("Most security headers are in place.");a.fx.cert&&a.fx.cert.match&&a.fx.cert.chain&&a.fx.cert.days>0&&pos.push("Certificate is valid and matches the domain.");a.fx.sec.filter(s=>s[1]=="Failed").length>2&&neg.push("Several security settings are missing.");a.fx.cert&&a.fx.cert.days<0&&neg.push("Certificate has expired.")}
  if(r.rep.ver)neg.push(r.rep.ver+" verified community report(s).");else if(!r.rep.n)pos.push("No community reports (this does not prove safety).");
  const recs=r.score>=50?["Do not enter passwords or payment details.","Close the page and report it using 'Report a site'.","Open the real organisation's site by typing its address yourself."]:r.score>=25?["Be careful with logins and payments.","Verify the site through an official source."]:["No major concerns found. Keep normal caution."];
  const h=S.hist[r.host]||[];
  const pts=h.map((p,i)=>`${i*(280/Math.max(1,h.length-1))+10},${110-p[1]}`).join(" ");
  const dots=h.map((p,i)=>{const cx=i*(280/Math.max(1,h.length-1))+10,cy=110-p[1];return `<circle cx="${cx}" cy="${cy}" r="4" fill="var(--blue)"><title>${esc(p[0])}: Score ${p[1]}/100</title></circle>`}).join("");
- $("#res").innerHTML=`<div class="card"><div class="top"><div><div class="score ${cc}">${r.score}</div><div class="mut">out of 100</div></div><div><h2 style="margin:0" class="${cc}">${c}</h2><div>Confidence: <b>${r.confL}</b> (${r.conf}%) · Coverage: <b>${r.coverage??100}%</b></div><div class="mut">${esc(r.url)} · ${r.time} ${r.id?`<span class="pill">ID: TL-${esc(String(r.id).slice(-6))}</span>`:""} ${a.fx?'<span class="demo">DEMO DATA</span>':""}</div></div></div></div>
+ const covStr=r.modulesAssessed?`${esc(r.modulesAssessed)} (${r.coverage??100}%)`:`${r.coverage??100}%`;
+ $("#res").innerHTML=`<div class="card"><div class="top"><div><div class="score ${cc}">${r.score}</div><div class="mut">out of 100</div></div><div><h2 style="margin:0" class="${cc}">${c}</h2><div>Confidence: <b>${r.confL}</b> (${r.conf}%) · Module Coverage: <b>${covStr}</b></div><div class="mut">${esc(r.url)} · ${r.time} ${r.id?`<span class="pill">ID: TL-${esc(String(r.id).slice(-6))}</span>`:""} ${isDemo?'<span class="demo">DEMO DATA</span>':""}</div></div></div></div>
 <div class="card"><h3>How each module contributed</h3>${Object.keys(names).map(k=>`<div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>${names[k]} <span class="mut">(weight ${WEIGHTS[k]*100}%)</span></span><b>${r.m[k]==null?"Not assessed":r.m[k]}</b></div>${r.m[k]==null?'<div class="mut">Needs the backend scanner; live header and certificate checks are not available in this browser demo.</div>':bar(r.m[k],r.m[k]<25?"ok":r.m[k]<50?"warn":"bad")}</div>`).join("")}</div>
 ${a.imp?`<div class="card" style="border-color:var(--bad)"><h3 class="bad">Possible impersonation detected</h3>Target organisation: <b>${esc(a.imp.n)}</b><br>Suspicious domain: <b>${esc(r.host)}</b><ul>${a.imp.ev.map(e=>"<li>"+e+"</li>").join("")}</ul><span class="mut">A similarity match, not confirmed fraud.</span></div>`:""}
 <div class="grid"><div class="card"><h3 class="ok">Positive findings</h3><ul>${pos.map(p=>"<li>✓ "+esc(p)+"</li>").join("")||"<li>None</li>"}</ul></div><div class="card"><h3 class="bad">Negative findings</h3><ul>${neg.map(p=>"<li>⚠ "+esc(p)+"</li>").join("")||"<li>None</li>"}</ul></div></div>
-${a.fx?`<div class="card"><h3>Website security checks</h3><div class="scroll"><table><tr><th>Check</th><th>Status</th><th>Severity</th><th>Explanation</th></tr>${a.fx.sec.map(s=>`<tr><td>${s[0]}</td><td>${st(s[1])}</td><td>${s[2]}</td><td>${s[3]} ${s[4]?"<br><span class=mut>Fix: "+s[4]+"</span>":""}</td></tr>`).join("")}</table></div></div>`:""}
+${a.fx&&Array.isArray(a.fx.sec)&&a.fx.sec.length?`<div class="card"><h3>Website security checks</h3><div class="scroll"><table><tr><th>Check</th><th>Status</th><th>Severity</th><th>Explanation</th></tr>${a.fx.sec.map(s=>`<tr><td>${s[0]}</td><td>${st(s[1])}</td><td>${s[2]}</td><td>${s[3]} ${s[4]?"<br><span class=mut>Fix: "+s[4]+"</span>":""}</td></tr>`).join("")}</table></div></div>`:""}
 <div class="card"><h3>Community reputation</h3>${r.rep.n?`${r.rep.n} report(s) from ${r.rep.uniq} unique reporter(s), ${r.rep.ver} verified.`:"No reports yet. Absence of reports is not proof of safety."}</div>
 <div class="card"><h3>Recommended actions</h3><ul>${(r.recommendations||recs).map(x=>"<li>👉 "+x+"</li>").join("")}</ul><button id="cp" class="alt" style="color:var(--blue);border-color:var(--blue)">Copy report summary</button> <span id="cpm" class="mut" style="margin-left:8px"></span>
 <details><summary>Technical details</summary><ul>${a.f.map(x=>`<li>+${x[0]} threat points: ${x[1]}</li>`).join("")||"<li>No URL indicators triggered.</li>"}</ul><span class="mut">ML classifier is not included in this prototype; scoring uses transparent URL heuristics.</span></details></div>
@@ -188,8 +194,9 @@ dashboard(){
    const recentReports=d.recentReports||[];
    const catEntries=Object.entries(cats);
    target.innerHTML=`
+<p class="mut" style="font-size:13px;margin-top:-6px;margin-bottom:14px">ℹ️ <b>Note:</b> Dashboard metrics reflect live, persisted database records. Browser-side simulated demo fixtures are strictly excluded from platform statistics.</p>
 <div class="grid dash-grid">${[
-  ["Websites scanned", scansCount, "Total live domain assessments"],
+  ["Total Scans Performed", scansCount, "Total live domain assessments"],
   ["High-risk scans", hiCount, "Scans with risk score &ge; 50"],
   ["Critical scans", crCount, "Scans with risk score &ge; 75"],
   ["Community reports", reportsCount, "Crowdsourced domain submissions"],
@@ -198,7 +205,7 @@ dashboard(){
 
 <div class="grid" style="margin-top:8px">
 <div class="card"><h3>Live Scan Risk Distribution</h3>
-${scansCount===0?'<span class="mut">No live websites scanned yet. Scans will populate this distribution.</span>':`
+${scansCount===0?'<span class="mut">No live scans performed yet. Live domain scans will populate this distribution (client-side demo fixtures are excluded).</span>':`
 <div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>Low Risk (&lt; 25)</span><b>${dist.low}</b></div>${bar(scansCount?Math.round(dist.low/scansCount*100):0,"ok")}</div>
 <div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>Moderate Risk (25–49)</span><b>${dist.moderate}</b></div>${bar(scansCount?Math.round(dist.moderate/scansCount*100):0,"warn")}</div>
 <div style="margin:8px 0"><div class="row" style="justify-content:space-between"><span>High Risk (50–74)</span><b>${dist.high}</b></div>${bar(scansCount?Math.round(dist.high/scansCount*100):0,"bad")}</div>
@@ -486,7 +493,7 @@ cert(){
                   rows += '<tr><td><b>Total Certificates Logged</b></td><td>' + esc(totalStr) + '</td></tr>' +
                           '<tr><td><b>First Logged In CT</b></td><td>' + esc(earliestStr) + '</td></tr>' +
                           '<tr><td><b>Latest CT Entry</b></td><td>' + esc(latestStr) + '</td></tr>' +
-                          '<tr><td><b>CT Observed Names (SAN)</b></td><td>' + sansStr + '</td></tr>';
+                          '<tr><td><b>CT Observed Names (SAN)</b></td><td>' + sansStr + '<br><span class="mut" style="font-size:11px;display:inline-block;margin-top:4px">⚠️ <em>Note: Multi-domain and CDN certificates frequently bundle unrelated third-party websites onto shared Subject Alternative Names. Discovered names do not necessarily imply common ownership or affiliation with the target domain.</em></span></td></tr>';
                 }
                 if (ct.note) {
                   rows += '<tr><td><b>CT Intelligence Note</b></td><td><span class="mut">' + esc(ct.note) + '</span></td></tr>';

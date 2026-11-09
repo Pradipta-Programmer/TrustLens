@@ -137,6 +137,7 @@ test('Certificates API Integration Suite', async (t) => {
       assert.equal(d.chainValid, true);
       assert.equal(d.status, 'valid');
       assert.ok(d.ct);
+      assert.ok(d.ct.disclaimer && d.ct.disclaimer.includes('Multi-domain and CDN certificates'));
       assert.ok(d.observedAt);
       assert.equal(j.meta.mode, 'live');
     });
